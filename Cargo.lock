@@ -163,6 +163,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "clap_builder",
+ "clap_lex",
 ]
 
 [[package]]
