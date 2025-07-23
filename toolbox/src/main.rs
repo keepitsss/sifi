@@ -1,5 +1,7 @@
 use std::ffi::OsString;
 
+use toolbox::flags::flags_prelude::*;
+
 struct _MyArgs {
     link_name: OsString,
     to: OsString,
