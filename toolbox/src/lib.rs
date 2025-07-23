@@ -1,4 +1,4 @@
-use std::{collections::HashSet, env::ArgsOs, iter::Peekable};
+use std::{env::ArgsOs, iter::Peekable};
 
 mod flag;
 pub use flag::*;
@@ -18,7 +18,7 @@ pub struct ParsingState<Flags> {
     pub name: (),
     pub args: Peekable<ArgsOs>,
     pub flags: Flags,
-    pub possible_flags: HashSet<FlagProperies>,
+    pub possible_flags: Vec<FlagProperies>,
 }
 
 pub mod flags;

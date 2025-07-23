@@ -6,19 +6,17 @@ macro_rules! noop {
     };
 }
 
-macro_rules! add_flags_ext {
-    ($name:ident: [$(($param:ident, $i:literal))+]) => {
-        pub trait Flags1<F0> {
-            fn flags(self, flags: (F0,)) -> ParsingState<(bool,)>;
-        }
-        impl<F0> Flags1<F0> for ParsingState<()>
-        where
-            F0: Flag,
+macro_rules! add_flags_methods {
+    ($method_name:ident: [$(($param:ident, $i:tt)),+]) => {
+        impl ParsingState<()>
         {
-            fn flags(mut self, flags: (F0,)) -> ParsingState<(bool,)> {
-                let possible_flags = HashSet::from_iter([flags.0.full_properies()]);
-                let mut flags = (Some(flags.0.full_properies()),);
-                let mut finded = (false,);
+            pub fn $method_name<$($param),+>(mut self, flags: ($($param,)+) ) -> ParsingState<($(noop!(($param) bool),)+)>
+            where
+                $($param: Flag),+
+            {
+                let possible_flags = Vec::from([$(flags.$i.full_properies()),+]);
+                let flags = ($((flags.$i.full_properies()),)+);
+                let mut finded = ($(noop!(($i) false),)+);
                 loop {
                     let Some(next_arg) = self.args.peek() else {
                         break;
@@ -26,17 +24,21 @@ macro_rules! add_flags_ext {
                     let Some(next_arg) = next_arg.to_str() else {
                         todo!();
                     };
-                    if let Some(ref flag) = flags.0
-                        && (flag.long_flag() == next_arg
-                            || flag.short_flag().is_some_and(|x| x == next_arg))
+                    $(
+                    if flags.$i.long_flag() == next_arg
+                       || flags.$i.short_flag().is_some_and(|x| x == next_arg)
                     {
-                        finded.0 = true;
-                        flags.0 = None;
+                        if finded.$i {
+                            todo!("duplicate");
+                        }
+                        finded.$i = true;
                         self.args.next().unwrap();
+                        continue;
                     }
+                    )+
                     break;
                 }
-                ParsingState::<(bool,)> {
+                ParsingState::<($(noop!(($param) bool),)+)> {
                     args: self.args,
                     name: self.name,
                     possible_flags,
@@ -46,4 +48,8 @@ macro_rules! add_flags_ext {
         }
     };
 }
-add_flags_ext!(Flags1: [(F0, 0)]);
+
+add_flags_methods!(flags1: [(F0, 0)]);
+add_flags_methods!(flags2: [(F0, 0), (F1, 1)]);
+add_flags_methods!(flags3: [(F0, 0), (F1, 1), (F2, 2)]);
+add_flags_methods!(flags4: [(F0, 0), (F1, 1), (F2, 2), (F3, 3)]);

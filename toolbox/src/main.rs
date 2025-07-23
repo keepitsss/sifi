@@ -1,7 +1,5 @@
 use std::ffi::OsString;
 
-use toolbox::flags::*;
-
 struct _MyArgs {
     link_name: OsString,
     to: OsString,
@@ -9,7 +7,11 @@ struct _MyArgs {
 }
 
 fn main() {
-    let var = toolbox::start_parsing().flags(((("hi",), "hello world flag"),));
+    let var = toolbox::start_parsing().flags3((
+        (("hi",), "hello world flag"),
+        (("my",), "meeee"),
+        (("world", "w"), "worldldld"),
+    ));
     println!("{var:#?}");
-    todo!();
+    let (_hi, _my, _world) = var.flags;
 }
