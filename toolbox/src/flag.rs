@@ -32,6 +32,7 @@ impl FlagProperies {
 impl Sealed for ((&str,),) {}
 impl Flag for ((&str,),) {
     fn long_name(&self) -> String {
+        check_long_flag(self.0.0);
         self.0.0.to_owned()
     }
     fn short_name(&self) -> Option<char> {
@@ -45,6 +46,7 @@ impl Flag for ((&str,),) {
 impl Sealed for ((&str,), &str) {}
 impl Flag for ((&str,), &str) {
     fn long_name(&self) -> String {
+        check_long_flag(self.0.0);
         self.0.0.to_owned()
     }
     fn short_name(&self) -> Option<char> {
@@ -58,6 +60,7 @@ impl Flag for ((&str,), &str) {
 impl Sealed for ((&str, char),) {}
 impl Flag for ((&str, char),) {
     fn long_name(&self) -> String {
+        check_long_flag(self.0.0);
         self.0.0.to_owned()
     }
     fn short_name(&self) -> Option<char> {
@@ -71,6 +74,7 @@ impl Flag for ((&str, char),) {
 impl Sealed for ((&str, char), &str) {}
 impl Flag for ((&str, char), &str) {
     fn long_name(&self) -> String {
+        check_long_flag(self.0.0);
         self.0.0.to_owned()
     }
     fn short_name(&self) -> Option<char> {
@@ -78,5 +82,14 @@ impl Flag for ((&str, char), &str) {
     }
     fn description(&self) -> Option<String> {
         Some(self.1.to_owned())
+    }
+}
+
+fn check_long_flag(name: &str) {
+    for char in name.chars() {
+        assert!(
+            char.is_ascii_alphanumeric() || char == '_',
+            "flag names should contain only ascii alphanumeric characters or underscore. this is not true for flag '--{name}'"
+        );
     }
 }
