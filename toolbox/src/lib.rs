@@ -2,6 +2,7 @@ use std::{env::ArgsOs, iter::Peekable};
 
 mod flag;
 pub use flag::*;
+pub mod flags;
 
 pub fn start_parsing() -> ParsingState<()> {
     let mut args = std::env::args_os();
@@ -20,5 +21,3 @@ pub struct ParsingState<Flags> {
     pub flags: Flags,
     pub possible_flags: Vec<FlagProperies>,
 }
-
-pub mod flags;
