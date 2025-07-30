@@ -26,7 +26,8 @@ where
     loop {
         let mut modified = false;
         {
-            let parsed = T1::try_parse_self(&mut cx)?;
+            let parsed = T1::try_parse_self(&mut cx)
+                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt1.is_none(),
@@ -38,7 +39,8 @@ where
             opt1 = opt1.or(parsed);
         }
         {
-            let parsed = T2::try_parse_self(&mut cx)?;
+            let parsed = T2::try_parse_self(&mut cx)
+                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt2.is_none(),
@@ -50,7 +52,8 @@ where
             opt2 = opt2.or(parsed);
         }
         {
-            let parsed = T3::try_parse_self(&mut cx)?;
+            let parsed = T3::try_parse_self(&mut cx)
+                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt3.is_none(),
@@ -62,7 +65,10 @@ where
             opt3 = opt3.or(parsed);
         }
         if !modified {
-            if FlagHelp::try_parse_self(&mut cx)?.is_some_and(|FlagHelp(help_needed)| help_needed) {
+            if FlagHelp::try_parse_self(&mut cx)
+                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?
+                .is_some_and(|FlagHelp(help_needed)| help_needed)
+            {
                 println!("{}", cx.documentation.build());
                 return Ok(());
             }

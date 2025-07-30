@@ -18,12 +18,12 @@ impl DocumentationStore {
             .or_default()
             .push((docs.association_name, docs.description));
     }
-    pub fn build(self) -> String {
+    pub fn build(&self) -> String {
         use std::fmt::Write;
 
         let mut output = String::new();
         writeln!(&mut output, "{}", self.item_docs).unwrap();
-        for (section, items) in self.store {
+        for (section, items) in &self.store {
             writeln!(&mut output, "\x1b[1;4m{section}s\x1b[0m:").unwrap();
 
             let least_common_width = items.iter().map(|(name, _desc)| name.len()).max().unwrap();
