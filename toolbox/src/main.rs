@@ -1,10 +1,12 @@
+use std::ffi::OsString;
+
 use anyhow::Result;
 use toolbox::*;
 
 fn main() -> Result<()> {
     parse(
-        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), _: EmpryTail| {
-            dbg!(is_hi_set, is_my_set, is_world_set);
+        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
+            dbg!(is_hi_set, is_my_set, is_world_set, tail);
         },
     )?;
     Ok(())
@@ -110,6 +112,17 @@ impl FinalOpt for EmpryTail {
                     .join(" ")
             ))
         }
+    }
+}
+struct TailArgs(Vec<OsString>);
+impl FinalOpt for TailArgs {
+    fn try_parse_self(cx: ParsingContext) -> Result<Self> {
+        Ok(Self(
+            cx.args
+                .get(cx.cursor..)
+                .map(|x| x.to_owned())
+                .unwrap_or_default(),
+        ))
     }
 }
 

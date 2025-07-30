@@ -3,8 +3,23 @@ use std::{collections::BTreeMap, ffi::OsString};
 pub struct ParsingContext {
     pub args: Vec<OsString>,
     pub cursor: usize,
-    pub partial_arg_pos: Option<usize>,
     pub documentation: DocumentationStore,
+}
+impl ParsingContext {
+    pub fn from_args() -> Self {
+        Self {
+            args: std::env::args_os().collect(),
+            cursor: 1,
+            documentation: DocumentationStore::default(),
+        }
+    }
+    pub fn from_tail(remaining_args: Vec<OsString>) -> Self {
+        Self {
+            args: remaining_args,
+            cursor: 0,
+            documentation: DocumentationStore::default(),
+        }
+    }
 }
 #[derive(Default)]
 pub struct DocumentationStore {
@@ -43,16 +58,6 @@ impl DocumentationStore {
         }
 
         output
-    }
-}
-impl ParsingContext {
-    pub fn from_args() -> Self {
-        Self {
-            args: std::env::args_os().collect(),
-            cursor: 1,
-            partial_arg_pos: None,
-            documentation: DocumentationStore::default(),
-        }
     }
 }
 
