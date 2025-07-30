@@ -12,13 +12,17 @@ fn main() -> Result<()> {
     // let (_hi, _my, _world) = var.flags;
     Ok(())
 }
-fn main_branch(FlagHi(is_hi_set): FlagHi, FlagMy(is_my_set): FlagMy) {
-    dbg!(is_hi_set, is_my_set);
+fn main_branch(
+    FlagHi(is_hi_set): FlagHi,
+    FlagMy(is_my_set): FlagMy,
+    FlagWorld(is_world_set): FlagWorld,
+) {
+    dbg!(is_hi_set, is_my_set, is_world_set);
 }
 
-fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
+fn parse(main_branch: fn(FlagHi, FlagMy, FlagWorld)) -> Result<()> {
     let mut cx = ParsingContext::from_args();
-    let (mut hi_flag, mut my_flag) = (None, None);
+    let (mut hi_flag, mut my_flag, mut world_flag) = (None, None, None);
     loop {
         let mut modified = false;
         {
@@ -36,6 +40,14 @@ fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
                 modified = true;
             }
             my_flag = my_flag.or(parsed);
+        }
+        {
+            let parsed = FlagWorld::try_parse_self(&mut cx)?;
+            if parsed.is_some() {
+                anyhow::ensure!(my_flag.is_none(), "option '--world' provided twice");
+                modified = true;
+            }
+            world_flag = world_flag.or(parsed);
         }
         if !modified {
             break;
@@ -57,7 +69,10 @@ fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
     let my_flag = my_flag
         .ok_or(String::new())
         .or_else(|_| FlagMy::default_case())?;
-    main_branch(hi_flag, my_flag);
+    let world_flag = world_flag
+        .ok_or(String::new())
+        .or_else(|_| FlagWorld::default_case())?;
+    main_branch(hi_flag, my_flag, world_flag);
     Ok(())
 }
 
@@ -114,5 +129,42 @@ impl FlagMy {
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
         description: "meeee",
+    };
+}
+
+struct FlagWorld(bool);
+impl FlagWorld {
+    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
+        if let Some(flag) = cx.args.get(cx.cursor)
+            && let Some(flag) = flag.to_str()
+        {
+            if flag.starts_with("--world") {
+                cx.cursor += 1;
+                anyhow::ensure!(
+                    flag == "--world",
+                    "flag '{flag}' not fount. maybe you mean '--world'"
+                );
+                Ok(Some(FlagWorld(true)))
+            } else if flag.starts_with("-w") {
+                cx.cursor += 1;
+                anyhow::ensure!(
+                    flag == "-w",
+                    "short flag '{flag}' not fount. maybe you mean '-w(--world)'"
+                );
+                Ok(Some(FlagWorld(true)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn default_case() -> Result<Self> {
+        Ok(FlagWorld(false))
+    }
+    const DOCUMENTATION: Documentation = Documentation {
+        section: "flag",
+        description: "worldldld",
     };
 }
