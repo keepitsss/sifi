@@ -2,15 +2,12 @@ use anyhow::Result;
 use toolbox::*;
 
 fn main() -> Result<()> {
-    parse(main_branch)?;
+    parse(
+        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set)| {
+            dbg!(is_hi_set, is_my_set, is_world_set);
+        },
+    )?;
     Ok(())
-}
-fn main_branch(
-    FlagHi(is_hi_set): FlagHi,
-    FlagMy(is_my_set): FlagMy,
-    FlagWorld(is_world_set): FlagWorld,
-) {
-    dbg!(is_hi_set, is_my_set, is_world_set);
 }
 
 fn parse<T1, T2, T3>(main_branch: impl FnOnce(T1, T2, T3)) -> Result<()>
