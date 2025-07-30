@@ -3,13 +3,6 @@ use toolbox::*;
 
 fn main() -> Result<()> {
     parse(main_branch)?;
-    // let var = toolbox::start_parsing().flags3((
-    //     (("hi",), "hello world flag"),
-    //     (("my",), "meeee"),
-    //     (("world", 'w'), "worldldld"),
-    // ));
-    // println!("{var:#?}");
-    // let (_hi, _my, _world) = var.flags;
     Ok(())
 }
 fn main_branch(
@@ -20,34 +13,51 @@ fn main_branch(
     dbg!(is_hi_set, is_my_set, is_world_set);
 }
 
-fn parse(main_branch: fn(FlagHi, FlagMy, FlagWorld)) -> Result<()> {
+fn parse<T1, T2, T3>(main_branch: impl FnOnce(T1, T2, T3)) -> Result<()>
+where
+    T1: Opt,
+    T2: Opt,
+    T3: Opt,
+{
     let mut cx = ParsingContext::from_args();
-    let (mut hi_flag, mut my_flag, mut world_flag) = (None, None, None);
+    let (mut opt1, mut opt2, mut opt3) = (None, None, None);
     loop {
         let mut modified = false;
         {
-            let parsed = FlagHi::try_parse_self(&mut cx)?;
+            let parsed = T1::try_parse_self(&mut cx)?;
             if parsed.is_some() {
-                anyhow::ensure!(hi_flag.is_none(), "option '--hi' provided twice");
+                anyhow::ensure!(
+                    opt1.is_none(),
+                    "option '{}' provided twice",
+                    T1::ASSOCIATION_NAME
+                );
                 modified = true;
             }
-            hi_flag = hi_flag.or(parsed);
+            opt1 = opt1.or(parsed);
         }
         {
-            let parsed = FlagMy::try_parse_self(&mut cx)?;
+            let parsed = T2::try_parse_self(&mut cx)?;
             if parsed.is_some() {
-                anyhow::ensure!(my_flag.is_none(), "option '--my' provided twice");
+                anyhow::ensure!(
+                    opt2.is_none(),
+                    "option '{}' provided twice",
+                    T2::ASSOCIATION_NAME
+                );
                 modified = true;
             }
-            my_flag = my_flag.or(parsed);
+            opt2 = opt2.or(parsed);
         }
         {
-            let parsed = FlagWorld::try_parse_self(&mut cx)?;
+            let parsed = T3::try_parse_self(&mut cx)?;
             if parsed.is_some() {
-                anyhow::ensure!(my_flag.is_none(), "option '--world' provided twice");
+                anyhow::ensure!(
+                    opt3.is_none(),
+                    "option '{}' provided twice",
+                    T3::ASSOCIATION_NAME
+                );
                 modified = true;
             }
-            world_flag = world_flag.or(parsed);
+            opt3 = opt3.or(parsed);
         }
         if !modified {
             break;
@@ -63,21 +73,24 @@ fn parse(main_branch: fn(FlagHi, FlagMy, FlagWorld)) -> Result<()> {
                 .join(" ")
         ));
     }
-    let hi_flag = hi_flag
-        .ok_or(String::new())
-        .or_else(|_| FlagHi::default_case())?;
-    let my_flag = my_flag
-        .ok_or(String::new())
-        .or_else(|_| FlagMy::default_case())?;
-    let world_flag = world_flag
-        .ok_or(String::new())
-        .or_else(|_| FlagWorld::default_case())?;
-    main_branch(hi_flag, my_flag, world_flag);
+    let opt1 = opt1.ok_or(String::new()).or_else(|_| T1::default_case())?;
+    let opt2 = opt2.ok_or(String::new()).or_else(|_| T2::default_case())?;
+    let opt3 = opt3.ok_or(String::new()).or_else(|_| T3::default_case())?;
+    main_branch(opt1, opt2, opt3);
     Ok(())
 }
 
+trait Opt: Sized {
+    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>>;
+
+    fn default_case() -> Result<Self>;
+
+    const ASSOCIATION_NAME: &str;
+    const DOCUMENTATION: Documentation;
+}
+
 struct FlagHi(bool);
-impl FlagHi {
+impl Opt for FlagHi {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
         if let Some(flag) = cx.args.get(cx.cursor)
             && let Some(flag) = flag.to_str()
@@ -98,6 +111,8 @@ impl FlagHi {
     fn default_case() -> Result<Self> {
         Ok(FlagHi(false))
     }
+
+    const ASSOCIATION_NAME: &str = "--hi";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
         description: "hello world flag",
@@ -105,7 +120,7 @@ impl FlagHi {
 }
 
 struct FlagMy(bool);
-impl FlagMy {
+impl Opt for FlagMy {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
         if let Some(flag) = cx.args.get(cx.cursor)
             && let Some(flag) = flag.to_str()
@@ -126,6 +141,8 @@ impl FlagMy {
     fn default_case() -> Result<Self> {
         Ok(FlagMy(false))
     }
+
+    const ASSOCIATION_NAME: &str = "--my";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
         description: "meeee",
@@ -133,7 +150,7 @@ impl FlagMy {
 }
 
 struct FlagWorld(bool);
-impl FlagWorld {
+impl Opt for FlagWorld {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
         if let Some(flag) = cx.args.get(cx.cursor)
             && let Some(flag) = flag.to_str()
@@ -163,6 +180,8 @@ impl FlagWorld {
     fn default_case() -> Result<Self> {
         Ok(FlagWorld(false))
     }
+
+    const ASSOCIATION_NAME: &str = "--world";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
         description: "worldldld",
