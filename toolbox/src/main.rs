@@ -21,17 +21,25 @@ fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
     let (mut hi_flag, mut my_flag) = (None, None);
     loop {
         let mut modified = false;
-        if hi_flag.is_none() {
-            hi_flag = FlagHi::try_parse_self(&mut cx)?;
-            if hi_flag.is_some() {
+        {
+            let parsed = FlagHi::try_parse_self(&mut cx)?;
+            if parsed.is_some() {
                 modified = true;
+                if hi_flag.is_some() {
+                    return Err(anyhow::anyhow!("option '--hi' provided twice"));
+                }
             }
+            hi_flag = parsed;
         }
-        if my_flag.is_none() {
-            my_flag = FlagMy::try_parse_self(&mut cx)?;
-            if my_flag.is_some() {
+        {
+            let parsed = FlagMy::try_parse_self(&mut cx)?;
+            if parsed.is_some() {
                 modified = true;
+                if my_flag.is_some() {
+                    return Err(anyhow::anyhow!("option '--my' provided twice"));
+                }
             }
+            my_flag = parsed;
         }
         if !modified {
             break;
