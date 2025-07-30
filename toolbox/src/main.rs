@@ -113,7 +113,7 @@ impl Opt for FlagHelp {
                     "flag '{flag}' not fount. maybe you mean '--help'"
                 );
                 Ok(Some(FlagHelp(true)))
-            } else if flag.starts_with("-w") {
+            } else if flag.starts_with("-h") {
                 cx.cursor += 1;
                 anyhow::ensure!(
                     flag == "-h",

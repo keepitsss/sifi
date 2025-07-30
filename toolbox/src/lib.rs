@@ -28,6 +28,7 @@ impl DocumentationStore {
 
             let least_common_width = items.iter().map(|(name, _desc)| name.len()).max().unwrap();
             for item in items {
+                // TODO: print all names
                 writeln!(
                     &mut output,
                     "      \x1b[1m{name}\x1b[0m{aligning_spaces}  {description}",
