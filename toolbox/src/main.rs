@@ -17,6 +17,11 @@ where
     T3: Opt,
 {
     let mut cx = ParsingContext::from_args();
+    cx.documentation.add(T1::DOCUMENTATION);
+    cx.documentation.add(T2::DOCUMENTATION);
+    cx.documentation.add(T3::DOCUMENTATION);
+    cx.documentation.add(FlagHelp::DOCUMENTATION);
+
     let (mut opt1, mut opt2, mut opt3) = (None, None, None);
     loop {
         let mut modified = false;
@@ -57,6 +62,10 @@ where
             opt3 = opt3.or(parsed);
         }
         if !modified {
+            if FlagHelp::try_parse_self(&mut cx)?.is_some_and(|FlagHelp(help_needed)| help_needed) {
+                println!("{}", cx.documentation.build());
+                return Ok(());
+            }
             break;
         }
     }
@@ -86,6 +95,46 @@ trait Opt: Sized {
     const DOCUMENTATION: Documentation;
 }
 
+struct FlagHelp(bool);
+impl Opt for FlagHelp {
+    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
+        if let Some(flag) = cx.args.get(cx.cursor)
+            && let Some(flag) = flag.to_str()
+        {
+            if flag.starts_with("--help") {
+                cx.cursor += 1;
+                anyhow::ensure!(
+                    flag == "--help",
+                    "flag '{flag}' not fount. maybe you mean '--help'"
+                );
+                Ok(Some(FlagHelp(true)))
+            } else if flag.starts_with("-w") {
+                cx.cursor += 1;
+                anyhow::ensure!(
+                    flag == "-h",
+                    "short flag '{flag}' not fount. maybe you mean '-h(--help)'"
+                );
+                Ok(Some(FlagHelp(true)))
+            } else {
+                Ok(None)
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn default_case() -> Result<Self> {
+        Ok(FlagHelp(false))
+    }
+
+    const ASSOCIATION_NAME: &str = "--help";
+    const DOCUMENTATION: Documentation = Documentation {
+        section: "flag",
+        association_name: Self::ASSOCIATION_NAME,
+        description: "Print help",
+    };
+}
+
 struct FlagHi(bool);
 impl Opt for FlagHi {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
@@ -112,6 +161,7 @@ impl Opt for FlagHi {
     const ASSOCIATION_NAME: &str = "--hi";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
+        association_name: Self::ASSOCIATION_NAME,
         description: "hello world flag",
     };
 }
@@ -142,6 +192,7 @@ impl Opt for FlagMy {
     const ASSOCIATION_NAME: &str = "--my";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
+        association_name: Self::ASSOCIATION_NAME,
         description: "meeee",
     };
 }
@@ -181,6 +232,7 @@ impl Opt for FlagWorld {
     const ASSOCIATION_NAME: &str = "--world";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
+        association_name: Self::ASSOCIATION_NAME,
         description: "worldldld",
     };
 }
