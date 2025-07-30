@@ -24,22 +24,18 @@ fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
         {
             let parsed = FlagHi::try_parse_self(&mut cx)?;
             if parsed.is_some() {
+                anyhow::ensure!(hi_flag.is_none(), "option '--hi' provided twice");
                 modified = true;
-                if hi_flag.is_some() {
-                    return Err(anyhow::anyhow!("option '--hi' provided twice"));
-                }
             }
-            hi_flag = parsed;
+            hi_flag = hi_flag.or(parsed);
         }
         {
             let parsed = FlagMy::try_parse_self(&mut cx)?;
             if parsed.is_some() {
+                anyhow::ensure!(my_flag.is_none(), "option '--my' provided twice");
                 modified = true;
-                if my_flag.is_some() {
-                    return Err(anyhow::anyhow!("option '--my' provided twice"));
-                }
             }
-            my_flag = parsed;
+            my_flag = my_flag.or(parsed);
         }
         if !modified {
             break;
