@@ -19,20 +19,23 @@ impl DocumentationStore {
             .push((docs.association_name, docs.description));
     }
     pub fn build(self) -> String {
+        use std::fmt::Write;
+
         let mut output = String::new();
-        output.push_str(self.item_docs);
-        output.push('\n');
+        writeln!(&mut output, "{}", self.item_docs).unwrap();
         for (section, items) in self.store {
-            output.push_str(section);
-            output.push_str(":\n");
+            writeln!(&mut output, "\x1b[1;4m{section}s\x1b[0m:").unwrap();
 
             let least_common_width = items.iter().map(|(name, _desc)| name.len()).max().unwrap();
             for item in items {
-                output.push_str("      ");
-                output.push_str(item.0);
-                output.push_str(&" ".repeat(least_common_width - item.0.len() + 2));
-                output.push_str(item.1);
-                output.push('\n');
+                writeln!(
+                    &mut output,
+                    "      \x1b[1m{name}\x1b[0m{aligning_spaces}  {description}",
+                    name = item.0,
+                    aligning_spaces = &" ".repeat(least_common_width - item.0.len()),
+                    description = item.1
+                )
+                .unwrap();
             }
         }
 
