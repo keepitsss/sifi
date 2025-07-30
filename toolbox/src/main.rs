@@ -12,13 +12,31 @@ fn main() -> Result<()> {
     // let (_hi, _my, _world) = var.flags;
     Ok(())
 }
-fn main_branch(FlagHi(is_hi_set): FlagHi) {
-    dbg!(is_hi_set);
+fn main_branch(FlagHi(is_hi_set): FlagHi, FlagMy(is_my_set): FlagMy) {
+    dbg!(is_hi_set, is_my_set);
 }
 
-fn parse(main_branch: fn(FlagHi)) -> Result<()> {
+fn parse(main_branch: fn(FlagHi, FlagMy)) -> Result<()> {
     let mut cx = ParsingContext::from_args();
-    let hi_flag = FlagHi::try_parse_self(&mut cx)?;
+    let (mut hi_flag, mut my_flag) = (None, None);
+    loop {
+        let mut modified = false;
+        if hi_flag.is_none() {
+            hi_flag = FlagHi::try_parse_self(&mut cx)?;
+            if hi_flag.is_some() {
+                modified = true;
+            }
+        }
+        if my_flag.is_none() {
+            my_flag = FlagMy::try_parse_self(&mut cx)?;
+            if my_flag.is_some() {
+                modified = true;
+            }
+        }
+        if !modified {
+            break;
+        }
+    }
     if cx.cursor != cx.args.len() {
         return Err(anyhow::anyhow!(
             "unmatched args: '{}'",
@@ -32,7 +50,10 @@ fn parse(main_branch: fn(FlagHi)) -> Result<()> {
     let hi_flag = hi_flag
         .ok_or(String::new())
         .or_else(|_| FlagHi::default_case())?;
-    main_branch(hi_flag);
+    let my_flag = my_flag
+        .ok_or(String::new())
+        .or_else(|_| FlagMy::default_case())?;
+    main_branch(hi_flag, my_flag);
     Ok(())
 }
 
@@ -61,5 +82,33 @@ impl FlagHi {
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
         description: "hello world flag",
+    };
+}
+
+struct FlagMy(bool);
+impl FlagMy {
+    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
+        if let Some(flag) = cx.args.get(cx.cursor)
+            && let Some(flag) = flag.to_str()
+            && flag.starts_with("--my")
+        {
+            cx.cursor += 1;
+            if flag != "--my" {
+                return Err(anyhow::anyhow!(
+                    "flag '{flag}' not fount. maybe you mean '--my'"
+                ));
+            }
+            Ok(Some(FlagMy(true)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn default_case() -> Result<Self> {
+        Ok(FlagMy(false))
+    }
+    const DOCUMENTATION: Documentation = Documentation {
+        section: "flag",
+        description: "meeee",
     };
 }
