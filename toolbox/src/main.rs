@@ -31,7 +31,7 @@ where
                 anyhow::ensure!(
                     opt1.is_none(),
                     "option '{}' provided twice",
-                    T1::ASSOCIATION_NAME
+                    T1::DOCUMENTATION.association_name
                 );
                 modified = true;
             }
@@ -43,7 +43,7 @@ where
                 anyhow::ensure!(
                     opt2.is_none(),
                     "option '{}' provided twice",
-                    T2::ASSOCIATION_NAME
+                    T2::DOCUMENTATION.association_name
                 );
                 modified = true;
             }
@@ -55,7 +55,7 @@ where
                 anyhow::ensure!(
                     opt3.is_none(),
                     "option '{}' provided twice",
-                    T3::ASSOCIATION_NAME
+                    T3::DOCUMENTATION.association_name
                 );
                 modified = true;
             }
@@ -91,7 +91,6 @@ trait Opt: Sized {
 
     fn default_case() -> Result<Self>;
 
-    const ASSOCIATION_NAME: &str;
     const DOCUMENTATION: Documentation;
 }
 
@@ -127,11 +126,10 @@ impl Opt for FlagHelp {
         Ok(FlagHelp(false))
     }
 
-    const ASSOCIATION_NAME: &str = "--help";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: Self::ASSOCIATION_NAME,
-        description: "Print help",
+        association_name: "--help",
+        description: "print help",
     };
 }
 
@@ -158,10 +156,9 @@ impl Opt for FlagHi {
         Ok(FlagHi(false))
     }
 
-    const ASSOCIATION_NAME: &str = "--hi";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: Self::ASSOCIATION_NAME,
+        association_name: "--hi",
         description: "hello world flag",
     };
 }
@@ -189,10 +186,9 @@ impl Opt for FlagMy {
         Ok(FlagMy(false))
     }
 
-    const ASSOCIATION_NAME: &str = "--my";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: Self::ASSOCIATION_NAME,
+        association_name: "--my",
         description: "meeee",
     };
 }
@@ -229,10 +225,9 @@ impl Opt for FlagWorld {
         Ok(FlagWorld(false))
     }
 
-    const ASSOCIATION_NAME: &str = "--world";
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: Self::ASSOCIATION_NAME,
+        association_name: "--world",
         description: "worldldld",
     };
 }
