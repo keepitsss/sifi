@@ -22,7 +22,9 @@ impl DocumentationStore {
         use std::fmt::Write;
 
         let mut output = String::new();
-        writeln!(&mut output, "{}", self.item_docs).unwrap();
+        if !self.item_docs.is_empty() {
+            writeln!(&mut output, "{}", self.item_docs).unwrap();
+        }
         for (section, items) in &self.store {
             writeln!(&mut output, "\x1b[1;4m{section}s\x1b[0m:").unwrap();
 

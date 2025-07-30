@@ -3,31 +3,33 @@ use toolbox::*;
 
 fn main() -> Result<()> {
     parse(
-        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set)| {
+        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), _: EmpryTail| {
             dbg!(is_hi_set, is_my_set, is_world_set);
         },
     )?;
     Ok(())
 }
 
-fn parse<T1, T2, T3>(main_branch: impl FnOnce(T1, T2, T3)) -> Result<()>
+fn parse<T1, T2, T3, R>(main_branch: impl FnOnce(T1, T2, T3, R)) -> Result<()>
 where
     T1: Opt,
     T2: Opt,
     T3: Opt,
+    R: FinalOpt,
 {
     let mut cx = ParsingContext::from_args();
     cx.documentation.add(T1::DOCUMENTATION);
     cx.documentation.add(T2::DOCUMENTATION);
     cx.documentation.add(T3::DOCUMENTATION);
     cx.documentation.add(FlagHelp::DOCUMENTATION);
+    let docs = cx.documentation.build();
 
     let (mut opt1, mut opt2, mut opt3) = (None, None, None);
     loop {
         let mut modified = false;
         {
-            let parsed = T1::try_parse_self(&mut cx)
-                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
+            let parsed =
+                T1::try_parse_self(&mut cx).map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt1.is_none(),
@@ -39,8 +41,8 @@ where
             opt1 = opt1.or(parsed);
         }
         {
-            let parsed = T2::try_parse_self(&mut cx)
-                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
+            let parsed =
+                T2::try_parse_self(&mut cx).map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt2.is_none(),
@@ -52,8 +54,8 @@ where
             opt2 = opt2.or(parsed);
         }
         {
-            let parsed = T3::try_parse_self(&mut cx)
-                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?;
+            let parsed =
+                T3::try_parse_self(&mut cx).map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
             if parsed.is_some() {
                 anyhow::ensure!(
                     opt3.is_none(),
@@ -66,7 +68,7 @@ where
         }
         if !modified {
             if FlagHelp::try_parse_self(&mut cx)
-                .map_err(|err| anyhow::anyhow!("{err}\n{}", cx.documentation.build()))?
+                .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?
                 .is_some_and(|FlagHelp(help_needed)| help_needed)
             {
                 println!("{}", cx.documentation.build());
@@ -75,20 +77,11 @@ where
             break;
         }
     }
-    if cx.cursor != cx.args.len() {
-        return Err(anyhow::anyhow!(
-            "unmatched args: '{}'",
-            cx.args[cx.cursor..]
-                .iter()
-                .map(|x| x.to_string_lossy())
-                .collect::<Vec<_>>()
-                .join(" ")
-        ));
-    }
+    let tail = R::try_parse_self(cx).map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
     let opt1 = opt1.ok_or(String::new()).or_else(|_| T1::default_case())?;
     let opt2 = opt2.ok_or(String::new()).or_else(|_| T2::default_case())?;
     let opt3 = opt3.ok_or(String::new()).or_else(|_| T3::default_case())?;
-    main_branch(opt1, opt2, opt3);
+    main_branch(opt1, opt2, opt3, tail);
     Ok(())
 }
 
@@ -98,6 +91,26 @@ trait Opt: Sized {
     fn default_case() -> Result<Self>;
 
     const DOCUMENTATION: Documentation;
+}
+trait FinalOpt: Sized {
+    fn try_parse_self(cx: ParsingContext) -> Result<Self>;
+}
+struct EmpryTail;
+impl FinalOpt for EmpryTail {
+    fn try_parse_self(cx: ParsingContext) -> Result<Self> {
+        if cx.cursor == cx.args.len() {
+            Ok(EmpryTail)
+        } else {
+            Err(anyhow::anyhow!(
+                "unmatched args: '{}'",
+                cx.args[cx.cursor..]
+                    .iter()
+                    .map(|x| x.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            ))
+        }
+    }
 }
 
 struct FlagHelp(bool);
