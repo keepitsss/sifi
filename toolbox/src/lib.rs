@@ -9,18 +9,11 @@ pub struct ParsingContext {
     pub documentation: DocumentationStore,
 }
 impl ParsingContext {
-    pub fn from_args() -> Self {
+    pub fn from_args(program_docs: Documentation) -> Self {
         Self {
             args: std::env::args_os().collect(),
             cursor: 0,
-            documentation: DocumentationStore::default(),
-        }
-    }
-    pub fn from_tail(remaining_args: Vec<OsString>) -> Self {
-        Self {
-            args: remaining_args,
-            cursor: 0,
-            documentation: DocumentationStore::default(),
+            documentation: DocumentationStore::new(program_docs),
         }
     }
 }
@@ -37,24 +30,41 @@ pub trait FinalOpt: Sized {
     fn try_parse_self(cx: ParsingContext) -> Result<Self>;
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct DocumentationStore {
-    pub item_docs: &'static str,
+    pub item_docs: Documentation,
     pub store: BTreeMap<&'static str, Vec<Documentation>>,
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Documentation {
     pub names: OptNames,
     pub description: &'static str,
 }
-
-#[derive(Debug)]
+impl Documentation {
+    pub fn todo(main_name: &'static str) -> Self {
+        Documentation {
+            names: OptNames {
+                main: main_name,
+                short: None,
+                aliases: &[],
+            },
+            description: "TODO",
+        }
+    }
+}
+#[derive(Debug, Clone, Copy)]
 pub struct OptNames {
     pub main: &'static str,
     pub short: Option<&'static str>,
     pub aliases: &'static [&'static str],
 }
 impl DocumentationStore {
+    pub fn new(item_docs: Documentation) -> Self {
+        Self {
+            item_docs,
+            store: BTreeMap::default(),
+        }
+    }
     pub fn add(&mut self, section: &'static str, docs: Documentation) {
         self.store.entry(section).or_default().push(docs);
     }
@@ -62,8 +72,14 @@ impl DocumentationStore {
         use std::fmt::Write;
 
         let mut output = String::new();
-        if !self.item_docs.is_empty() {
-            writeln!(&mut output, "{}", self.item_docs).unwrap();
+        {
+            // TODO:
+            writeln!(
+                &mut output,
+                "\x1b[1m{}\x1b[0m - {}",
+                self.item_docs.names.main, self.item_docs.description
+            )
+            .unwrap();
         }
         for (section, items) in &self.store {
             writeln!(&mut output).unwrap();

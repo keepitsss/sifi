@@ -4,10 +4,17 @@ use anyhow::Result;
 use toolbox::*;
 
 fn main() -> Result<()> {
-    let mut cx = ParsingContext::from_args();
+    let mut cx = ParsingContext::from_args(Documentation {
+        names: OptNames {
+            main: "test_program",
+            short: None,
+            aliases: &[],
+        },
+        description: "command line parsing library",
+    });
     cx.cursor += 1;
     Some(cx)
-        .subcommand("subcmd", |cx| {
+        .subcommand(Documentation::todo("subcmd"), |cx| {
             parse(
                 cx,
                 |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
@@ -31,7 +38,7 @@ fn main() -> Result<()> {
 trait ParsingRouter: Sized {
     type Inner;
     fn current_command(self, callback: impl FnOnce(Self::Inner));
-    fn subcommand(self, name: &'static str, callback: impl FnOnce(Self::Inner)) -> Self;
+    fn subcommand(self, docs: Documentation, callback: impl FnOnce(Self::Inner)) -> Self;
 }
 impl ParsingRouter for Option<ParsingContext> {
     type Inner = ParsingContext;
@@ -41,10 +48,10 @@ impl ParsingRouter for Option<ParsingContext> {
 
     fn subcommand(
         self,
-        name: &'static str,
+        docs: Documentation,
         callback: impl FnOnce(ParsingContext),
     ) -> Option<ParsingContext> {
-        subcommand(self, name, callback)
+        subcommand(self, docs, callback)
     }
 }
 
@@ -56,30 +63,24 @@ fn current_command(cx: Option<ParsingContext>, callback: impl FnOnce(ParsingCont
 
 fn subcommand(
     cx: Option<ParsingContext>,
-    name: &'static str,
+    docs: Documentation,
     callback: impl FnOnce(ParsingContext),
 ) -> Option<ParsingContext> {
     if let Some(mut cx) = cx {
-        cx.documentation.add(
-            "subcommand",
-            Documentation {
-                names: OptNames {
-                    main: name,
-                    short: None,
-                    aliases: &[],
-                },
-                description: "TODO",
-            },
-        );
         if let Some(next) = cx.args.get(cx.cursor)
             && let Some(str) = next.to_str()
-            && str == name
+            && {
+                str == docs.names.main
+                    || docs.names.short.is_some_and(|x| x == str)
+                    || docs.names.aliases.contains(&str)
+            }
         {
             cx.cursor += 1;
-            cx.documentation = DocumentationStore::default();
+            cx.documentation = DocumentationStore::new(docs);
             callback(cx);
             None
         } else {
+            cx.documentation.add("subcommand", docs);
             Some(cx)
         }
     } else {
