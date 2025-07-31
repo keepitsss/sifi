@@ -1,11 +1,9 @@
-use std::ffi::OsString;
-
 use anyhow::Result;
 use toolbox::*;
 
 fn main() -> Result<()> {
     let mut cx = ParsingContext::from_args(Documentation {
-        names: OptNames {
+        names: Names {
             main: "test_program",
             short: None,
             aliases: &[],
@@ -17,7 +15,10 @@ fn main() -> Result<()> {
         .subcommand(Documentation::todo("subcmd"), |cx| {
             parse(
                 cx,
-                |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
+                |FlagHi(is_hi_set),
+                 FlagMy(is_my_set),
+                 FlagWorld(is_world_set),
+                 utils::TailArgs(tail)| {
                     dbg!(is_hi_set, is_my_set, is_world_set, tail);
                 },
             )
@@ -26,66 +27,16 @@ fn main() -> Result<()> {
         .current_command(|cx| {
             parse(
                 cx,
-                |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
+                |FlagHi(is_hi_set),
+                 FlagMy(is_my_set),
+                 FlagWorld(is_world_set),
+                 utils::TailArgs(tail)| {
                     dbg!(is_hi_set, is_my_set, is_world_set, tail);
                 },
             )
             .unwrap();
         });
     Ok(())
-}
-
-trait ParsingRouter: Sized {
-    type Inner;
-    fn current_command(self, callback: impl FnOnce(Self::Inner));
-    fn subcommand(self, docs: Documentation, callback: impl FnOnce(Self::Inner)) -> Self;
-}
-impl ParsingRouter for Option<ParsingContext> {
-    type Inner = ParsingContext;
-    fn current_command(self, callback: impl FnOnce(ParsingContext)) {
-        current_command(self, callback)
-    }
-
-    fn subcommand(
-        self,
-        docs: Documentation,
-        callback: impl FnOnce(ParsingContext),
-    ) -> Option<ParsingContext> {
-        subcommand(self, docs, callback)
-    }
-}
-
-fn current_command(cx: Option<ParsingContext>, callback: impl FnOnce(ParsingContext)) {
-    if let Some(cx) = cx {
-        callback(cx);
-    }
-}
-
-fn subcommand(
-    cx: Option<ParsingContext>,
-    docs: Documentation,
-    callback: impl FnOnce(ParsingContext),
-) -> Option<ParsingContext> {
-    if let Some(mut cx) = cx {
-        if let Some(next) = cx.args.get(cx.cursor)
-            && let Some(str) = next.to_str()
-            && {
-                str == docs.names.main
-                    || docs.names.short.is_some_and(|x| x == str)
-                    || docs.names.aliases.contains(&str)
-            }
-        {
-            cx.cursor += 1;
-            cx.documentation = DocumentationStore::new(docs);
-            callback(cx);
-            None
-        } else {
-            cx.documentation.add("subcommand", docs);
-            Some(cx)
-        }
-    } else {
-        None
-    }
 }
 
 fn parse<T1, T2, T3, R>(
@@ -166,35 +117,6 @@ where
     Ok(())
 }
 
-struct EmptyTail;
-impl FinalOpt for EmptyTail {
-    fn try_parse_self(cx: ParsingContext) -> Result<Self> {
-        if cx.cursor == cx.args.len() {
-            Ok(EmptyTail)
-        } else {
-            Err(anyhow::anyhow!(
-                "unmatched args: '{}'",
-                cx.args[cx.cursor..]
-                    .iter()
-                    .map(|x| x.to_string_lossy())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            ))
-        }
-    }
-}
-struct TailArgs(Vec<OsString>);
-impl FinalOpt for TailArgs {
-    fn try_parse_self(cx: ParsingContext) -> Result<Self> {
-        Ok(Self(
-            cx.args
-                .get(cx.cursor..)
-                .map(|x| x.to_owned())
-                .unwrap_or_default(),
-        ))
-    }
-}
-
 struct FlagHelp(bool);
 impl Opt for FlagHelp {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
@@ -229,7 +151,7 @@ impl Opt for FlagHelp {
 
     const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        names: OptNames {
+        names: Names {
             main: "--help",
             short: Some("-h"),
             aliases: &[],
@@ -263,7 +185,7 @@ impl Opt for FlagHi {
 
     const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        names: OptNames {
+        names: Names {
             main: "--hi",
             short: None,
             aliases: &["--hello"],
@@ -297,7 +219,7 @@ impl Opt for FlagMy {
 
     const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        names: OptNames {
+        names: Names {
             main: "--my",
             short: None,
             aliases: &[],
@@ -340,7 +262,7 @@ impl Opt for FlagWorld {
 
     const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        names: OptNames {
+        names: Names {
             main: "--world",
             short: Some("-w"),
             aliases: &[],
