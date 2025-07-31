@@ -1,5 +1,7 @@
 use std::{collections::BTreeMap, ffi::OsString};
 
+use anyhow::Result;
+
 pub struct ParsingContext {
     pub args: Vec<OsString>,
     pub cursor: usize,
@@ -20,6 +22,17 @@ impl ParsingContext {
             documentation: DocumentationStore::default(),
         }
     }
+}
+
+pub trait Opt: Sized {
+    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>>;
+
+    fn default_case() -> Result<Self>;
+
+    const DOCUMENTATION: Documentation;
+}
+pub trait FinalOpt: Sized {
+    fn try_parse_self(cx: ParsingContext) -> Result<Self>;
 }
 
 pub struct Documentation {

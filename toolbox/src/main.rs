@@ -87,16 +87,6 @@ where
     Ok(())
 }
 
-trait Opt: Sized {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>>;
-
-    fn default_case() -> Result<Self>;
-
-    const DOCUMENTATION: Documentation;
-}
-trait FinalOpt: Sized {
-    fn try_parse_self(cx: ParsingContext) -> Result<Self>;
-}
 struct EmptyTail;
 impl FinalOpt for EmptyTail {
     fn try_parse_self(cx: ParsingContext) -> Result<Self> {
