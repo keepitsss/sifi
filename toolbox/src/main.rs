@@ -31,7 +31,7 @@ fn main() -> Result<()> {
 trait ParsingRouter: Sized {
     type Inner;
     fn current_command(self, callback: impl FnOnce(Self::Inner));
-    fn subcommand(self, name: &str, callback: impl FnOnce(Self::Inner)) -> Self;
+    fn subcommand(self, name: &'static str, callback: impl FnOnce(Self::Inner)) -> Self;
 }
 impl ParsingRouter for Option<ParsingContext> {
     type Inner = ParsingContext;
@@ -41,7 +41,7 @@ impl ParsingRouter for Option<ParsingContext> {
 
     fn subcommand(
         self,
-        name: &str,
+        name: &'static str,
         callback: impl FnOnce(ParsingContext),
     ) -> Option<ParsingContext> {
         subcommand(self, name, callback)
@@ -56,7 +56,7 @@ fn current_command(cx: Option<ParsingContext>, callback: impl FnOnce(ParsingCont
 
 fn subcommand(
     cx: Option<ParsingContext>,
-    name: &str,
+    name: &'static str,
     callback: impl FnOnce(ParsingContext),
 ) -> Option<ParsingContext> {
     if let Some(mut cx) = cx {
@@ -65,9 +65,19 @@ fn subcommand(
             && str == name
         {
             cx.cursor += 1;
+            cx.documentation = DocumentationStore::default();
             callback(cx);
             None
         } else {
+            cx.documentation.add(Documentation {
+                section: "subcommand",
+                names: OptNames {
+                    main: name,
+                    short: None,
+                    aliases: &[],
+                },
+                description: "TODO",
+            });
             Some(cx)
         }
     } else {
@@ -85,7 +95,6 @@ where
     T3: Opt,
     R: FinalOpt,
 {
-    cx.documentation = DocumentationStore::default();
     cx.documentation.add(T1::DOCUMENTATION);
     cx.documentation.add(T2::DOCUMENTATION);
     cx.documentation.add(T3::DOCUMENTATION);

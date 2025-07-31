@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, ffi::OsString};
 
 use anyhow::Result;
 
+#[derive(Debug)]
 pub struct ParsingContext {
     pub args: Vec<OsString>,
     pub cursor: usize,
@@ -41,13 +42,14 @@ pub struct Documentation {
     pub description: &'static str,
 }
 
+#[derive(Debug)]
 pub struct OptNames {
     pub main: &'static str,
     pub short: Option<&'static str>,
     pub aliases: &'static [&'static str],
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DocumentationStore {
     pub item_docs: &'static str,
     pub store: BTreeMap<&'static str, Vec<(OptNames, &'static str)>>,
@@ -67,6 +69,7 @@ impl DocumentationStore {
             writeln!(&mut output, "{}", self.item_docs).unwrap();
         }
         for (section, items) in &self.store {
+            writeln!(&mut output).unwrap();
             writeln!(&mut output, "\x1b[1;4m{section}s:\x1b[0m").unwrap();
 
             let least_common_full_name_width = items
