@@ -11,7 +11,7 @@ impl ParsingContext {
     pub fn from_args() -> Self {
         Self {
             args: std::env::args_os().collect(),
-            cursor: 1,
+            cursor: 0,
             documentation: DocumentationStore::default(),
         }
     }

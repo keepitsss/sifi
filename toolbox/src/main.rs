@@ -4,22 +4,89 @@ use anyhow::Result;
 use toolbox::*;
 
 fn main() -> Result<()> {
-    parse(
-        |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
-            dbg!(is_hi_set, is_my_set, is_world_set, tail);
+    let mut cx = ParsingContext::from_args();
+    cx.cursor += 1;
+    current_command(
+        subcommand(Some(cx), "subcmd", |cx| {
+            parse(
+                cx,
+                |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
+                    dbg!(is_hi_set, is_my_set, is_world_set, tail);
+                },
+            )
+            .unwrap();
+        }),
+        |cx| {
+            parse(
+                cx,
+                |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
+                    dbg!(is_hi_set, is_my_set, is_world_set, tail);
+                },
+            )
+            .unwrap();
         },
-    )?;
+    );
     Ok(())
 }
 
-fn parse<T1, T2, T3, R>(main_branch: impl FnOnce(T1, T2, T3, R)) -> Result<()>
+trait ParsingRouter: Sized {
+    type Inner;
+    fn current_command(self, callback: impl FnOnce(Self::Inner));
+    fn subcommand(self, name: &str, callback: impl FnOnce(Self::Inner)) -> Self;
+}
+impl ParsingRouter for Option<ParsingContext> {
+    type Inner = ParsingContext;
+    fn current_command(self, callback: impl FnOnce(ParsingContext)) {
+        current_command(self, callback)
+    }
+
+    fn subcommand(
+        self,
+        name: &str,
+        callback: impl FnOnce(ParsingContext),
+    ) -> Option<ParsingContext> {
+        subcommand(self, name, callback)
+    }
+}
+
+fn current_command(cx: Option<ParsingContext>, callback: impl FnOnce(ParsingContext)) {
+    if let Some(cx) = cx {
+        callback(cx);
+    }
+}
+
+fn subcommand(
+    cx: Option<ParsingContext>,
+    name: &str,
+    callback: impl FnOnce(ParsingContext),
+) -> Option<ParsingContext> {
+    if let Some(mut cx) = cx {
+        if let Some(next) = cx.args.get(cx.cursor)
+            && let Some(str) = next.to_str()
+            && str == name
+        {
+            cx.cursor += 1;
+            callback(cx);
+            None
+        } else {
+            Some(cx)
+        }
+    } else {
+        None
+    }
+}
+
+fn parse<T1, T2, T3, R>(
+    mut cx: ParsingContext,
+    main_branch: impl FnOnce(T1, T2, T3, R),
+) -> Result<()>
 where
     T1: Opt,
     T2: Opt,
     T3: Opt,
     R: FinalOpt,
 {
-    let mut cx = ParsingContext::from_args();
+    cx.documentation = DocumentationStore::default();
     cx.documentation.add(T1::DOCUMENTATION);
     cx.documentation.add(T2::DOCUMENTATION);
     cx.documentation.add(T3::DOCUMENTATION);
