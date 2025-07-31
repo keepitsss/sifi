@@ -60,6 +60,17 @@ fn subcommand(
     callback: impl FnOnce(ParsingContext),
 ) -> Option<ParsingContext> {
     if let Some(mut cx) = cx {
+        cx.documentation.add(
+            "subcommand",
+            Documentation {
+                names: OptNames {
+                    main: name,
+                    short: None,
+                    aliases: &[],
+                },
+                description: "TODO",
+            },
+        );
         if let Some(next) = cx.args.get(cx.cursor)
             && let Some(str) = next.to_str()
             && str == name
@@ -69,15 +80,6 @@ fn subcommand(
             callback(cx);
             None
         } else {
-            cx.documentation.add(Documentation {
-                section: "subcommand",
-                names: OptNames {
-                    main: name,
-                    short: None,
-                    aliases: &[],
-                },
-                description: "TODO",
-            });
             Some(cx)
         }
     } else {
@@ -95,10 +97,11 @@ where
     T3: Opt,
     R: FinalOpt,
 {
-    cx.documentation.add(T1::DOCUMENTATION);
-    cx.documentation.add(T2::DOCUMENTATION);
-    cx.documentation.add(T3::DOCUMENTATION);
-    cx.documentation.add(FlagHelp::DOCUMENTATION);
+    cx.documentation.add(T1::SECTION, T1::DOCUMENTATION);
+    cx.documentation.add(T2::SECTION, T2::DOCUMENTATION);
+    cx.documentation.add(T3::SECTION, T3::DOCUMENTATION);
+    cx.documentation
+        .add(FlagHelp::SECTION, FlagHelp::DOCUMENTATION);
     let docs = cx.documentation.build();
 
     let (mut opt1, mut opt2, mut opt3) = (None, None, None);
@@ -223,8 +226,8 @@ impl Opt for FlagHelp {
         Ok(FlagHelp(false))
     }
 
+    const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        section: "flag",
         names: OptNames {
             main: "--help",
             short: Some("-h"),
@@ -257,8 +260,8 @@ impl Opt for FlagHi {
         Ok(FlagHi(false))
     }
 
+    const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        section: "flag",
         names: OptNames {
             main: "--hi",
             short: None,
@@ -291,8 +294,8 @@ impl Opt for FlagMy {
         Ok(FlagMy(false))
     }
 
+    const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        section: "flag",
         names: OptNames {
             main: "--my",
             short: None,
@@ -334,8 +337,8 @@ impl Opt for FlagWorld {
         Ok(FlagWorld(false))
     }
 
+    const SECTION: &str = "flag";
     const DOCUMENTATION: Documentation = Documentation {
-        section: "flag",
         names: OptNames {
             main: "--world",
             short: Some("-w"),

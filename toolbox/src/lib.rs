@@ -30,14 +30,20 @@ pub trait Opt: Sized {
 
     fn default_case() -> Result<Self>;
 
+    const SECTION: &str;
     const DOCUMENTATION: Documentation;
 }
 pub trait FinalOpt: Sized {
     fn try_parse_self(cx: ParsingContext) -> Result<Self>;
 }
 
+#[derive(Default, Debug)]
+pub struct DocumentationStore {
+    pub item_docs: &'static str,
+    pub store: BTreeMap<&'static str, Vec<Documentation>>,
+}
+#[derive(Debug)]
 pub struct Documentation {
-    pub section: &'static str,
     pub names: OptNames,
     pub description: &'static str,
 }
@@ -48,18 +54,9 @@ pub struct OptNames {
     pub short: Option<&'static str>,
     pub aliases: &'static [&'static str],
 }
-
-#[derive(Default, Debug)]
-pub struct DocumentationStore {
-    pub item_docs: &'static str,
-    pub store: BTreeMap<&'static str, Vec<(OptNames, &'static str)>>,
-}
 impl DocumentationStore {
-    pub fn add(&mut self, docs: Documentation) {
-        self.store
-            .entry(docs.section)
-            .or_default()
-            .push((docs.names, docs.description));
+    pub fn add(&mut self, section: &'static str, docs: Documentation) {
+        self.store.entry(section).or_default().push(docs);
     }
     pub fn build(&self) -> String {
         use std::fmt::Write;
@@ -74,15 +71,15 @@ impl DocumentationStore {
 
             let least_common_full_name_width = items
                 .iter()
-                .map(|(names, _desc)| names.main.len())
+                .map(|docs| docs.names.main.len())
                 .max()
                 .unwrap();
             let least_common_short_name_width = items
                 .iter()
-                .filter_map(|(names, _desc)| names.short)
+                .filter_map(|docs| docs.names.short)
                 .map(|short_name| short_name.len())
                 .max();
-            for (names, description) in items {
+            for Documentation { names, description } in items {
                 let short_name;
                 let short_aligning_spaces;
                 if let Some(least_common_short_name_width) = least_common_short_name_width {
