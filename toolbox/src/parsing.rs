@@ -6,11 +6,13 @@ pub trait ParsingCallback<Inputs = Infallible> {
     fn process(cx: ParsingContext, callback: Self) -> Result<()>;
 }
 
-pub fn parse<C, Inputs>(cx: ParsingContext, callback: C) -> Result<()>
-where
-    C: ParsingCallback<Inputs>,
-{
-    C::process(cx, callback)
+impl ParsingContext {
+    pub fn parse<C, Inputs>(self, callback: C) -> Result<()>
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        C::process(self, callback)
+    }
 }
 
 #[rustfmt::skip]

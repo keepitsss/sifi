@@ -2,21 +2,31 @@ use super::*;
 
 pub trait ParsingRouter: Sized {
     type Inner;
-    fn current_command(self, callback: impl FnOnce(Self::Inner));
-    fn subcommand(self, docs: Documentation, callback: impl FnOnce(Self::Inner)) -> Self;
+    fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
+    where
+        C: ParsingCallback<Inputs>;
+    fn current_command<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>;
 }
 impl ParsingRouter for Option<ParsingContext> {
     type Inner = ParsingContext;
-    fn current_command(self, callback: impl FnOnce(ParsingContext)) {
-        current_command(self, callback)
-    }
 
-    fn subcommand(
-        self,
-        docs: Documentation,
-        callback: impl FnOnce(ParsingContext),
-    ) -> Option<ParsingContext> {
-        subcommand(self, docs, callback)
+    fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        subcommand(self, docs, |cx| {
+            cx.parse(callback).unwrap();
+        })
+    }
+    fn current_command<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        current_command(self, |cx| {
+            cx.parse(callback).unwrap();
+        })
     }
 }
 
