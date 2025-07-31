@@ -36,7 +36,7 @@ where
                 anyhow::ensure!(
                     opt1.is_none(),
                     "option '{}' provided twice",
-                    T1::DOCUMENTATION.association_name
+                    T1::DOCUMENTATION.names.main
                 );
                 modified = true;
             }
@@ -49,7 +49,7 @@ where
                 anyhow::ensure!(
                     opt2.is_none(),
                     "option '{}' provided twice",
-                    T2::DOCUMENTATION.association_name
+                    T2::DOCUMENTATION.names.main
                 );
                 modified = true;
             }
@@ -62,7 +62,7 @@ where
                 anyhow::ensure!(
                     opt3.is_none(),
                     "option '{}' provided twice",
-                    T3::DOCUMENTATION.association_name
+                    T3::DOCUMENTATION.names.main
                 );
                 modified = true;
             }
@@ -160,7 +160,11 @@ impl Opt for FlagHelp {
 
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: "--help",
+        names: OptNames {
+            main: "--help",
+            short: Some("-h"),
+            aliases: &[],
+        },
         description: "print help",
     };
 }
@@ -190,7 +194,11 @@ impl Opt for FlagHi {
 
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: "--hi",
+        names: OptNames {
+            main: "--hi",
+            short: None,
+            aliases: &[],
+        },
         description: "hello world flag",
     };
 }
@@ -220,7 +228,11 @@ impl Opt for FlagMy {
 
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: "--my",
+        names: OptNames {
+            main: "--my",
+            short: None,
+            aliases: &[],
+        },
         description: "meeee",
     };
 }
@@ -259,7 +271,11 @@ impl Opt for FlagWorld {
 
     const DOCUMENTATION: Documentation = Documentation {
         section: "flag",
-        association_name: "--world",
+        names: OptNames {
+            main: "--world",
+            short: Some("-w"),
+            aliases: &[],
+        },
         description: "worldldld",
     };
 }
