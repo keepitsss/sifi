@@ -6,8 +6,8 @@ use toolbox::*;
 fn main() -> Result<()> {
     let mut cx = ParsingContext::from_args();
     cx.cursor += 1;
-    current_command(
-        subcommand(Some(cx), "subcmd", |cx| {
+    Some(cx)
+        .subcommand("subcmd", |cx| {
             parse(
                 cx,
                 |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
@@ -15,8 +15,8 @@ fn main() -> Result<()> {
                 },
             )
             .unwrap();
-        }),
-        |cx| {
+        })
+        .current_command(|cx| {
             parse(
                 cx,
                 |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), TailArgs(tail)| {
@@ -24,8 +24,7 @@ fn main() -> Result<()> {
                 },
             )
             .unwrap();
-        },
-    );
+        });
     Ok(())
 }
 
