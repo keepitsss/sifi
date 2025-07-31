@@ -117,156 +117,35 @@ where
     Ok(())
 }
 
+use derive_more::From;
+
+#[derive(From)]
 struct FlagHelp(bool);
-impl Opt for FlagHelp {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
-        if let Some(flag) = cx.args.get(cx.cursor)
-            && let Some(flag) = flag.to_str()
-        {
-            if flag.starts_with("--help") {
-                cx.cursor += 1;
-                anyhow::ensure!(
-                    flag == "--help",
-                    "flag '{flag}' not fount. maybe you mean '--help'"
-                );
-                Ok(Some(FlagHelp(true)))
-            } else if flag.starts_with("-h") {
-                cx.cursor += 1;
-                anyhow::ensure!(
-                    flag == "-h",
-                    "short flag '{flag}' not fount. maybe you mean '-h(--help)'"
-                );
-                Ok(Some(FlagHelp(true)))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn default_case() -> Result<Self> {
-        Ok(FlagHelp(false))
-    }
-
-    const SECTION: &str = "flag";
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: "--help",
-            short: Some("-h"),
-            aliases: &[],
-        },
-        description: "print help",
-    };
+impl utils::FlagBool for FlagHelp {
+    const NAME: &str = "--help";
+    const SHORT_NAME: Option<&str> = Some("-h");
+    const DESCRIPTION: &str = "print help";
 }
 
+#[derive(From)]
 struct FlagHi(bool);
-impl Opt for FlagHi {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
-        if let Some(flag) = cx.args.get(cx.cursor)
-            && let Some(flag) = flag.to_str()
-            && (flag.starts_with("--hi") || flag.starts_with("--hello"))
-        {
-            cx.cursor += 1;
-            if flag != "--hi" && flag != "--hello" {
-                return Err(anyhow::anyhow!(
-                    "flag '{flag}' not fount. maybe you mean '--hi'"
-                ));
-            }
-            Ok(Some(FlagHi(true)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn default_case() -> Result<Self> {
-        Ok(FlagHi(false))
-    }
-
-    const SECTION: &str = "flag";
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: "--hi",
-            short: None,
-            aliases: &["--hello"],
-        },
-        description: "hello world flag",
-    };
+impl utils::FlagBool for FlagHi {
+    const NAME: &str = "--hi";
+    const ALIASES: &[&str] = &["--hello"];
+    const DESCRIPTION: &str = "hello world flag";
 }
 
+#[derive(From)]
 struct FlagMy(bool);
-impl Opt for FlagMy {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
-        if let Some(flag) = cx.args.get(cx.cursor)
-            && let Some(flag) = flag.to_str()
-            && flag.starts_with("--my")
-        {
-            cx.cursor += 1;
-            if flag != "--my" {
-                return Err(anyhow::anyhow!(
-                    "flag '{flag}' not fount. maybe you mean '--my'"
-                ));
-            }
-            Ok(Some(FlagMy(true)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn default_case() -> Result<Self> {
-        Ok(FlagMy(false))
-    }
-
-    const SECTION: &str = "flag";
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: "--my",
-            short: None,
-            aliases: &[],
-        },
-        description: "meeee",
-    };
+impl utils::FlagBool for FlagMy {
+    const NAME: &str = "--my";
+    const DESCRIPTION: &str = "meeee";
 }
 
+#[derive(From)]
 struct FlagWorld(bool);
-impl Opt for FlagWorld {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
-        if let Some(flag) = cx.args.get(cx.cursor)
-            && let Some(flag) = flag.to_str()
-        {
-            if flag.starts_with("--world") {
-                cx.cursor += 1;
-                anyhow::ensure!(
-                    flag == "--world",
-                    "flag '{flag}' not fount. maybe you mean '--world'"
-                );
-                Ok(Some(FlagWorld(true)))
-            } else if flag.starts_with("-w") {
-                cx.cursor += 1;
-                anyhow::ensure!(
-                    flag == "-w",
-                    "short flag '{flag}' not fount. maybe you mean '-w(--world)'"
-                );
-                Ok(Some(FlagWorld(true)))
-            } else {
-                Ok(None)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn default_case() -> Result<Self> {
-        Ok(FlagWorld(false))
-    }
-
-    const SECTION: &str = "flag";
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: "--world",
-            short: Some("-w"),
-            aliases: &[],
-        },
-        description: "worldldld",
-    };
+impl utils::FlagBool for FlagWorld {
+    const NAME: &str = "--world";
+    const SHORT_NAME: Option<&str> = Some("-w");
+    const DESCRIPTION: &str = "worldldld";
 }
