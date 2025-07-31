@@ -97,11 +97,11 @@ trait Opt: Sized {
 trait FinalOpt: Sized {
     fn try_parse_self(cx: ParsingContext) -> Result<Self>;
 }
-struct EmpryTail;
-impl FinalOpt for EmpryTail {
+struct EmptyTail;
+impl FinalOpt for EmptyTail {
     fn try_parse_self(cx: ParsingContext) -> Result<Self> {
         if cx.cursor == cx.args.len() {
-            Ok(EmpryTail)
+            Ok(EmptyTail)
         } else {
             Err(anyhow::anyhow!(
                 "unmatched args: '{}'",
@@ -174,10 +174,10 @@ impl Opt for FlagHi {
     fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
         if let Some(flag) = cx.args.get(cx.cursor)
             && let Some(flag) = flag.to_str()
-            && flag.starts_with("--hi")
+            && (flag.starts_with("--hi") || flag.starts_with("--hello"))
         {
             cx.cursor += 1;
-            if flag != "--hi" {
+            if flag != "--hi" && flag != "--hello" {
                 return Err(anyhow::anyhow!(
                     "flag '{flag}' not fount. maybe you mean '--hi'"
                 ));
@@ -197,7 +197,7 @@ impl Opt for FlagHi {
         names: OptNames {
             main: "--hi",
             short: None,
-            aliases: &[],
+            aliases: &["--hello"],
         },
         description: "hello world flag",
     };

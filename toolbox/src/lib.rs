@@ -66,31 +66,32 @@ impl DocumentationStore {
                 .filter_map(|(names, _desc)| names.short)
                 .map(|short_name| short_name.len())
                 .max();
-            // TODO: print aliases
-            if let Some(least_common_short_name_width) = least_common_short_name_width {
-                for (names, description) in items {
-                    writeln!(
+            for (names, description) in items {
+                let short_name;
+                let short_aligning_spaces;
+                if let Some(least_common_short_name_width) = least_common_short_name_width {
+                    short_name = names.short.map(|x| x.to_owned() + ",").unwrap_or_default();
+                    short_aligning_spaces = " ".repeat(
+                        least_common_short_name_width + 1
+                            - names.short.map(|x| x.len() + 1).unwrap_or_default(),
+                    );
+                } else {
+                    short_name = "".into();
+                    short_aligning_spaces = "   ".into();
+                }
+                let name = names.main;
+                let main_aligning_spaces =
+                    &" ".repeat(least_common_full_name_width - names.main.len());
+                let aliases = if names.aliases.is_empty() {
+                    "".into()
+                } else {
+                    format!("[aliases: {aliases}]", aliases = names.aliases.join(", "))
+                };
+                writeln!(
                         &mut output,
-                        "  \x1b[1m{short_name}{short_aligning_spaces} {name}{main_aligning_spaces}\x1b[0m  {description}",
-                        short_name = names.short.map(|x| x.to_owned() + ",").unwrap_or_default(),
-                        short_aligning_spaces = &" ".repeat(least_common_short_name_width + 1 - names.short.map(|x| x.len() + 1).unwrap_or_default()),
-                        name = names.main,
-                        main_aligning_spaces =
-                            &" ".repeat(least_common_full_name_width - names.main.len()),
+                        "  \x1b[1m{short_name}{short_aligning_spaces} {name}{main_aligning_spaces}\x1b[0m  {description} {aliases}",
                     )
                     .unwrap();
-                }
-            } else {
-                for (names, description) in items {
-                    writeln!(
-                        &mut output,
-                        "      \x1b[1m{name}{main_aligning_spaces}\x1b[0m  {description}",
-                        name = names.main,
-                        main_aligning_spaces =
-                            &" ".repeat(least_common_full_name_width - names.main.len()),
-                    )
-                    .unwrap();
-                }
             }
         }
 
