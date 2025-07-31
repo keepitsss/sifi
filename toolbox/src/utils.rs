@@ -67,3 +67,15 @@ where
         description: Self::DESCRIPTION,
     };
 }
+
+pub struct FlagHelp(pub bool);
+impl From<bool> for FlagHelp {
+    fn from(value: bool) -> Self {
+        FlagHelp(value)
+    }
+}
+impl utils::FlagBool for FlagHelp {
+    const NAME: &str = "--help";
+    const SHORT_NAME: Option<&str> = Some("-h");
+    const DESCRIPTION: &str = "print help";
+}
