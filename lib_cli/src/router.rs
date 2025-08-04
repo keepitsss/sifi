@@ -1,6 +1,6 @@
 use super::*;
 
-pub trait ParsingRouter: Sized {
+pub trait ParsingRouter {
     fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
     where
         C: ParsingCallback<Inputs>;

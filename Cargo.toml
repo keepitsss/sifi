@@ -1,3 +1,15 @@
 [workspace]
 resolver = "3"
-members = ["toolbox"]
+members = ["lib_cli"]
+
+# For minimum size:
+# RUSTFLAGS="-Zlocation-detail=none"
+# ( RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" )
+# -Z build-std=std,panic_abort -Z build-std-features="optimize_for_size"
+#
+# [profile.release]
+# strip = true
+# opt-level = "z"
+# lto = true
+# codegen-units = 1
+# panic = "abort"

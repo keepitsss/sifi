@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+
+use anyhow::anyhow;
+
 use super::*;
 
 pub struct EmptyTail;
@@ -82,4 +86,38 @@ impl utils::FlagBool for FlagHelp {
     const NAME: &str = "--help";
     const SHORT_NAME: Option<&str> = Some("-h");
     const DESCRIPTION: &str = "print help";
+}
+
+pub struct AppPath(pub PathBuf);
+impl Opt for AppPath {
+    fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool> {
+        if this.is_some() {
+            return Ok(false);
+        }
+        if cx.cursor != 0 {
+            return Err(anyhow!("App Path should go first"));
+        }
+        let name = cx.args.first();
+        if let Some(name) = name {
+            *this = Some(AppPath(PathBuf::from(name)));
+            cx.cursor += 1;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+    fn finalize(this: Option<Self>) -> Result<Self> {
+        this.ok_or(anyhow!("First argument should be App Path"))
+    }
+
+    const SECTION: &str = "hidden";
+
+    const DOCUMENTATION: Documentation = Documentation {
+        names: Names {
+            main: "APP_PATH",
+            short: None,
+            aliases: &[],
+        },
+        description: "path to this program",
+    };
 }
