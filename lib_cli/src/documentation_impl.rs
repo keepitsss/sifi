@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use super::*;
 
 impl Documentation {
-    pub fn todo(main_name: &'static str) -> Self {
+    pub const fn todo(main_name: &'static str) -> Self {
         Documentation {
             names: Names {
                 main: main_name,

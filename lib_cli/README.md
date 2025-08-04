@@ -1,6 +1,6 @@
 # Description
 
-Rust library for Command Line Interface, that is small(400 LoC) and simple.
+Rust library for Command Line Interface, that is small(500 LoC) and simple.
 
 Only depenency is anyhow.
 

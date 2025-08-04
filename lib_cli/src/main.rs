@@ -19,7 +19,9 @@ fn main() -> Result<()> {
             },
         )
         .current_command(
-            |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), EmptyTail| {
+            |Sequence((FlagHi(is_hi_set), FlagMy(is_my_set))),
+             FlagWorld(is_world_set),
+             EmptyTail| {
                 println!("is_hi_set: {is_hi_set}");
                 println!("is_my_set: {is_my_set}");
                 println!("is_world_set: {is_world_set}");
