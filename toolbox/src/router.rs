@@ -1,7 +1,6 @@
 use super::*;
 
 pub trait ParsingRouter: Sized {
-    type Inner;
     fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
     where
         C: ParsingCallback<Inputs>;
@@ -13,8 +12,6 @@ pub trait ParsingRouter: Sized {
         C: ParsingCallback<Inputs>;
 }
 impl ParsingRouter for Option<ParsingContext> {
-    type Inner = ParsingContext;
-
     fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
     where
         C: ParsingCallback<Inputs>,
@@ -38,6 +35,28 @@ impl ParsingRouter for Option<ParsingContext> {
         current_command(self, |cx| {
             cx.parse(callback, false).unwrap();
         })
+    }
+}
+impl ParsingRouter for ParsingContext {
+    fn subcommand<C, Inputs>(self, docs: Documentation, callback: C) -> Option<ParsingContext>
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        Some(self).subcommand(docs, callback)
+    }
+
+    fn current_command<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        Some(self).current_command(callback);
+    }
+
+    fn wrapper<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        Some(self).wrapper(callback);
     }
 }
 
