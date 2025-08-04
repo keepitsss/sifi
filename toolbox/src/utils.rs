@@ -34,7 +34,10 @@ impl<T> Opt for T
 where
     T: FlagBool,
 {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>> {
+    fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool> {
+        if this.is_some() {
+            return Ok(false);
+        }
         if let Some(next) = cx.args.get(cx.cursor)
             && let Some(next) = next.to_str()
         {
@@ -43,17 +46,18 @@ where
                 || Self::ALIASES.contains(&next)
             {
                 cx.cursor += 1;
-                Ok(Some(Self::from(true)))
+                *this = Some(Self::from(true));
+                Ok(true)
             } else {
-                Ok(None)
+                Ok(false)
             }
         } else {
-            Ok(None)
+            Ok(false)
         }
     }
 
-    fn default_case() -> Result<Self> {
-        Ok(Self::from(false))
+    fn finalize(this: Option<Self>) -> Result<Self> {
+        Ok(this.unwrap_or(Self::from(false)))
     }
 
     const SECTION: &str = "flag";

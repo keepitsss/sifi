@@ -18,9 +18,10 @@ impl ParsingContext {
     }
 }
 pub trait Opt: Sized {
-    fn try_parse_self(cx: &mut ParsingContext) -> Result<Option<Self>>;
+    /// Returns whether progess is made
+    fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool>;
 
-    fn default_case() -> Result<Self>;
+    fn finalize(this: Option<Self>) -> Result<Self>;
 
     const SECTION: &str;
     const DOCUMENTATION: Documentation;

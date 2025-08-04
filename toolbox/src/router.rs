@@ -8,6 +8,9 @@ pub trait ParsingRouter: Sized {
     fn current_command<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>;
+    fn wrapper<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>;
 }
 impl ParsingRouter for Option<ParsingContext> {
     type Inner = ParsingContext;
@@ -17,7 +20,7 @@ impl ParsingRouter for Option<ParsingContext> {
         C: ParsingCallback<Inputs>,
     {
         subcommand(self, docs, |cx| {
-            cx.parse(callback).unwrap();
+            cx.parse(callback, true).unwrap();
         })
     }
     fn current_command<C, Inputs>(self, callback: C)
@@ -25,7 +28,15 @@ impl ParsingRouter for Option<ParsingContext> {
         C: ParsingCallback<Inputs>,
     {
         current_command(self, |cx| {
-            cx.parse(callback).unwrap();
+            cx.parse(callback, true).unwrap();
+        })
+    }
+    fn wrapper<C, Inputs>(self, callback: C)
+    where
+        C: ParsingCallback<Inputs>,
+    {
+        current_command(self, |cx| {
+            cx.parse(callback, false).unwrap();
         })
     }
 }

@@ -3,15 +3,15 @@ use std::convert::Infallible;
 use super::*;
 
 pub trait ParsingCallback<Inputs = Infallible> {
-    fn process(cx: ParsingContext, callback: Self) -> Result<()>;
+    fn process(cx: ParsingContext, callback: Self, add_help: bool) -> Result<()>;
 }
 
 impl ParsingContext {
-    pub fn parse<C, Inputs>(self, callback: C) -> Result<()>
+    pub fn parse<C, Inputs>(self, callback: C, add_help: bool) -> Result<()>
     where
         C: ParsingCallback<Inputs>,
     {
-        C::process(self, callback)
+        C::process(self, callback, add_help)
     }
 }
 
@@ -46,12 +46,14 @@ macro_rules! implement_parsing_callback {
             )+
             $last_ty: FinalOpt,
         {
-            fn process(mut cx: ParsingContext, callback: Self) -> Result<()> {
+            fn process(mut cx: ParsingContext, callback: Self, add_help: bool) -> Result<()> {
                 $(
                 cx.documentation.add($opt_ty::SECTION, $opt_ty::DOCUMENTATION);
                 )+
-                cx.documentation
-                    .add(FlagHelp::SECTION, FlagHelp::DOCUMENTATION);
+                if add_help {
+                    cx.documentation
+                        .add(FlagHelp::SECTION, FlagHelp::DOCUMENTATION);
+                }
                 let docs = cx.documentation.build();
 
                 let ($(mut $opt_name,)+) = ($(Option::<$opt_ty>::None,)+);
@@ -59,33 +61,27 @@ macro_rules! implement_parsing_callback {
                     let mut modified = false;
                     $(
                         {
-                            let parsed = $opt_ty::try_parse_self(&mut cx)
+                            modified |= $opt_ty::try_parse_self(&mut $opt_name, &mut cx)
                                 .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
-                            if parsed.is_some() {
-                                anyhow::ensure!(
-                                    $opt_name.is_none(),
-                                    "option '{}' provided twice",
-                                    $opt_ty::DOCUMENTATION.names.main
-                                );
-                                modified = true;
-                            }
-                            $opt_name = $opt_name.or(parsed);
                         }
                     )+
                     if !modified {
-                        if FlagHelp::try_parse_self(&mut cx)
-                            .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?
-                            .is_some_and(|FlagHelp(help_needed)| help_needed)
-                        {
-                            println!("{}", cx.documentation.build());
-                            return Ok(());
+                        if add_help {
+                            let mut help_flag = None;
+                            FlagHelp::try_parse_self(&mut help_flag, &mut cx)
+                                .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
+                            if help_flag.is_some_and(|FlagHelp(help_needed)| help_needed)
+                            {
+                                println!("{}", cx.documentation.build());
+                                return Ok(());
+                            }
                         }
                         break;
                     }
                 }
                 let tail = $last_ty::try_parse_self(cx).map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
                 $(
-                let $opt_name = $opt_name.ok_or(String::new()).or_else(|_| $opt_ty::default_case())?;
+                let $opt_name = $opt_ty::finalize($opt_name)?;
                 )+
                 callback($($opt_name),+ , tail);
                 Ok(())

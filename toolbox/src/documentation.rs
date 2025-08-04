@@ -51,7 +51,10 @@ impl DocumentationStore {
             )
             .unwrap();
         }
-        for (section, items) in &self.store {
+        for (&section, items) in &self.store {
+            if section == "hidden" {
+                continue;
+            }
             writeln!(&mut output).unwrap();
             writeln!(&mut output, "\x1b[1;4m{section}s:\x1b[0m").unwrap();
 

@@ -1,8 +1,10 @@
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{Result, anyhow};
 use toolbox::*;
 
 fn main() -> Result<()> {
-    let mut cx = ParsingContext::from_args(Documentation {
+    let cx = ParsingContext::from_args(Documentation {
         names: Names {
             main: "test_program",
             short: None,
@@ -10,19 +12,23 @@ fn main() -> Result<()> {
         },
         description: "command line parsing library",
     });
-    cx.cursor += 1;
-    Some(cx)
-        .subcommand(
-            Documentation::todo("subcmd"),
-            |FlagHi(is_hi_set), FlagWorld(is_world_set), utils::EmptyTail| {
-                dbg!(is_hi_set, is_world_set);
-            },
-        )
-        .current_command(
-            |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), utils::EmptyTail| {
-                dbg!(is_hi_set, is_my_set, is_world_set);
-            },
-        );
+    Some(cx).wrapper(|AppPath(_path), utils::TailArgs(args)| {
+        Some(args)
+            .subcommand(
+                Documentation::todo("subcmd"),
+                |FlagHi(is_hi_set), FlagWorld(is_world_set), utils::EmptyTail| {
+                    dbg!(is_hi_set, is_world_set);
+                },
+            )
+            .current_command(
+                |FlagHi(is_hi_set),
+                 FlagMy(is_my_set),
+                 FlagWorld(is_world_set),
+                 utils::EmptyTail| {
+                    dbg!(is_hi_set, is_my_set, is_world_set);
+                },
+            );
+    });
     Ok(())
 }
 
@@ -49,4 +55,38 @@ impl utils::FlagBool for FlagWorld {
     const NAME: &str = "--world";
     const SHORT_NAME: Option<&str> = Some("-w");
     const DESCRIPTION: &str = "worldldld";
+}
+
+struct AppPath(PathBuf);
+impl Opt for AppPath {
+    fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool> {
+        if this.is_some() {
+            return Ok(false);
+        }
+        if cx.cursor != 0 {
+            return Err(anyhow!("App Path should go first"));
+        }
+        let name = cx.args.first();
+        if let Some(name) = name {
+            *this = Some(AppPath(PathBuf::from(name)));
+            cx.cursor += 1;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+    fn finalize(this: Option<Self>) -> Result<Self> {
+        this.ok_or(anyhow!("First argument should be App Path"))
+    }
+
+    const SECTION: &str = "hidden";
+
+    const DOCUMENTATION: Documentation = Documentation {
+        names: Names {
+            main: "APP_PATH",
+            short: None,
+            aliases: &[],
+        },
+        description: "path to this program",
+    };
 }
