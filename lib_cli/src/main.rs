@@ -10,16 +10,18 @@ fn main() -> Result<()> {
         },
         description: "command line parsing library",
     });
-    cx.wrapper(|utils::AppPath(_path), utils::TailArgs(args)| {
+    cx.wrapper(|utils::AppPath(_path), TailArgs(args)| {
         args.subcommand(
             Documentation::todo("subcmd"),
-            |FlagHi(is_hi_set), FlagWorld(is_world_set), utils::EmptyTail| {
+            |FlagHi(is_hi_set), FlagWorld(is_world_set), EmptyTail| {
                 println!("is_hi_set: {is_hi_set}");
+                println!("is_world_set: {is_world_set}");
             },
         )
         .current_command(
-            |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), utils::EmptyTail| {
+            |FlagHi(is_hi_set), FlagMy(is_my_set), FlagWorld(is_world_set), EmptyTail| {
                 println!("is_hi_set: {is_hi_set}");
+                println!("is_my_set: {is_my_set}");
                 println!("is_world_set: {is_world_set}");
             },
         );

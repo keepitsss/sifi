@@ -1,15 +1,7 @@
 use std::collections::BTreeMap;
 
-#[derive(Debug)]
-pub struct DocumentationStore {
-    pub item_docs: Documentation,
-    pub store: BTreeMap<&'static str, Vec<Documentation>>,
-}
-#[derive(Debug, Clone, Copy)]
-pub struct Documentation {
-    pub names: Names,
-    pub description: &'static str,
-}
+use super::*;
+
 impl Documentation {
     pub fn todo(main_name: &'static str) -> Self {
         Documentation {
@@ -21,12 +13,6 @@ impl Documentation {
             description: "TODO",
         }
     }
-}
-#[derive(Debug, Clone, Copy)]
-pub struct Names {
-    pub main: &'static str,
-    pub short: Option<&'static str>,
-    pub aliases: &'static [&'static str],
 }
 impl DocumentationStore {
     pub fn new(item_docs: Documentation) -> Self {

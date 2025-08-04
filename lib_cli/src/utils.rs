@@ -4,7 +4,6 @@ use anyhow::anyhow;
 
 use super::*;
 
-pub struct EmptyTail;
 impl FinalOpt for EmptyTail {
     fn try_parse_self(cx: ParsingContext) -> Result<Self> {
         if cx.cursor == cx.args.len() {
@@ -21,7 +20,6 @@ impl FinalOpt for EmptyTail {
         }
     }
 }
-pub struct TailArgs(pub ParsingContext);
 impl FinalOpt for TailArgs {
     fn try_parse_self(cx: ParsingContext) -> Result<Self> {
         Ok(Self(cx))

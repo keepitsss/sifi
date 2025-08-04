@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{collections::BTreeMap, ffi::OsString};
 
 use anyhow::Result;
 
@@ -30,12 +30,29 @@ pub trait FinalOpt: Sized {
     fn try_parse_self(cx: ParsingContext) -> Result<Self>;
 }
 
-mod documentation;
-pub use documentation::*;
+#[derive(Debug, Clone, Copy)]
+pub struct Documentation {
+    pub names: Names,
+    pub description: &'static str,
+}
+#[derive(Debug, Clone, Copy)]
+pub struct Names {
+    pub main: &'static str,
+    pub short: Option<&'static str>,
+    pub aliases: &'static [&'static str],
+}
+#[derive(Debug)]
+pub struct DocumentationStore {
+    pub item_docs: Documentation,
+    pub store: BTreeMap<&'static str, Vec<Documentation>>,
+}
+mod documentation_impl;
 
 mod router;
 pub use router::*;
 
+pub struct EmptyTail;
+pub struct TailArgs(pub ParsingContext);
 pub mod utils;
 use utils::*;
 
