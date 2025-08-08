@@ -1,6 +1,6 @@
 use std::{
+    any::Any,
     fmt::{Display, Write},
-    rc::Rc,
 };
 
 use bumpalo::Bump;
@@ -35,22 +35,28 @@ impl Display for Indentation {
     }
 }
 
-#[derive(Clone)]
-struct AnyElement(Rc<dyn Renderable>);
-impl Renderable for AnyElement {
+#[derive(Clone, Copy)]
+struct AnyElement<'a>(&'a dyn Renderable);
+impl Renderable for AnyElement<'_> {
     fn render(&self, cx: &mut Context) {
         self.0.render(cx);
     }
 }
 trait IntoElement {
-    fn into_any_element(self) -> AnyElement;
+    fn into_any_element<'a, 'arena>(self, arena: &'arena Bump) -> AnyElement<'a>
+    where
+        'arena: 'a;
 }
 impl<T> IntoElement for T
 where
     T: Renderable + 'static,
 {
-    fn into_any_element(self) -> AnyElement {
-        AnyElement(Rc::new(self))
+    fn into_any_element<'a, 'arena>(self, arena: &'arena Bump) -> AnyElement<'a>
+    where
+        'arena: 'a,
+    {
+        let value = arena.alloc(self);
+        AnyElement(value)
     }
 }
 
@@ -63,27 +69,28 @@ trait Renderable {
     fn render(&self, cx: &mut Context);
 }
 
-struct Html {
-    body: Option<AnyElement>,
+struct Html<'a> {
+    body: Option<AnyElement<'a>>,
 }
-fn html() -> Html {
-    Html { body: None }
-}
-impl Html {
-    fn body(mut self, child: impl IntoElement) -> Self {
+
+impl<'a> Html<'a> {
+    fn body<'arena>(&mut self, arena: &'arena Bump, child: impl IntoElement) -> &mut Self
+    where
+        'arena: 'a,
+    {
         assert!(self.body.is_none());
-        self.body = Some(child.into_any_element());
+        self.body = Some(child.into_any_element(arena));
         self
     }
 }
-impl Renderable for Html {
+impl Renderable for Html<'_> {
     fn render(&self, cx: &mut Context) {
         cx_writeln!(cx, "{}<html>", cx.indentation);
         cx.indentation.level += 1;
         cx_writeln!(cx, "{}<body>", cx.indentation);
         if let Some(body) = &self.body {
             cx.indentation.level += 1;
-            body.clone().into_any_element().render(cx);
+            body.render(cx);
             cx.indentation.level -= 1;
         }
         cx_writeln!(cx, "{}</body>", cx.indentation);
@@ -116,15 +123,15 @@ impl Renderable for HtmlAttribute {
     }
 }
 #[derive(Clone)]
-struct HtmlElement {
-    name: String,
-    attributes: Vec<HtmlAttribute>,
-    children: Vec<AnyElement>,
+struct HtmlElement<'a> {
+    name: &'a str,
+    attributes: &'a [HtmlAttribute],
+    children: &'a [AnyElement<'a>],
 }
-impl Renderable for HtmlElement {
+impl Renderable for HtmlElement<'_> {
     fn render(&self, cx: &mut Context) {
         cx_write!(cx, "{}<{}", cx.indentation, self.name);
-        for attribute in &self.attributes {
+        for attribute in self.attributes {
             attribute.render(cx);
         }
         if self.children.is_empty() {
@@ -133,9 +140,9 @@ impl Renderable for HtmlElement {
         }
         cx_writeln!(cx, ">");
 
-        for child in &self.children {
+        for child in self.children {
             cx.indentation.level += 1;
-            child.clone().into_any_element().render(&mut *cx);
+            child.render(&mut *cx);
             cx.indentation.level -= 1;
         }
 
@@ -145,37 +152,37 @@ impl Renderable for HtmlElement {
 
 trait SimpleElement {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element(&self) -> HtmlElement;
+    fn into_html_element<'a, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'a>;
 }
 impl<T> Renderable for T
 where
     T: SimpleElement,
 {
     fn render(&self, cx: &mut Context) {
-        self.into_html_element().render(cx);
+        self.into_html_element(cx.arena).render(cx);
     }
 }
 
-struct Div {
-    children: Vec<AnyElement>,
+struct Div<'a> {
+    children: Vec<AnyElement<'a>>,
 }
-fn div() -> Div {
-    Div {
-        children: Vec::new(),
-    }
-}
-impl Div {
-    fn child(mut self, child: impl Renderable + 'static) -> Self {
-        self.children.push(child.into_any_element());
+
+impl<'a> Div<'a> {
+    fn child<'arena>(mut self, arena: &'arena Bump, child: impl Renderable + 'static) -> Self
+    where
+        'arena: 'a,
+    {
+        self.children.push(child.into_any_element(arena));
         self
     }
 }
-impl SimpleElement for Div {
-    fn into_html_element(&self) -> HtmlElement {
+impl<'elem> SimpleElement for Div<'elem> {
+    fn into_html_element<'a, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'a> {
+        // TODO: copy vec of children to arena and pass reference
         HtmlElement {
-            name: "div".into(),
-            attributes: Vec::new(),
-            children: self.children.clone(),
+            name: arena.alloc("div"),
+            attributes: &[],
+            children: &[], // FIXME
         }
     }
 }
@@ -188,20 +195,33 @@ fn main() {
         output: String::new(),
         arena: &allocator,
     };
-    let html = html().body(
-        div().child(div()).child(
-            div()
-                .child(div())
-                .child(div())
-                .child(div())
-                .child(div())
-                .child(div()),
-        ),
-    );
-    html.into_any_element().render(&mut cx);
+    let mut html = html();
+    let body = div().child(cx.arena, div());
+    html.set_body(cx.arena, body);
+
+    html.render(&mut cx);
 
     let output = cx.output;
     drop(allocator);
 
     println!("{output}");
+}
+
+impl<'a> Html<'a> {
+    fn set_body<'arena>(&mut self, arena: &'arena Bump, body: Div<'a>)
+    where
+        'arena: 'a,
+    {
+        self.body = Some(AnyElement(arena.alloc(body)));
+    }
+}
+
+fn html<'a>() -> Html<'a> {
+    Html { body: None }
+}
+
+fn div<'a>() -> Div<'a> {
+    Div {
+        children: Vec::new(),
+    }
 }
