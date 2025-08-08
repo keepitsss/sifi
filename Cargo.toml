@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["lib_cli"]
+members = ["html-components","lib_cli"]
 
 # For minimum size:
 # RUSTFLAGS="-Zlocation-detail=none"

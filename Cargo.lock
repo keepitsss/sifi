@@ -29,6 +29,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "html-components"
+version = "0.1.0"
+
+[[package]]
 name = "lib_cli"
 version = "0.1.0"
 dependencies = [
