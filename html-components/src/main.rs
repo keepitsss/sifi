@@ -110,12 +110,14 @@ impl Renderable for Html {
     }
 }
 
+#[derive(Clone)]
 enum HtmlValue {
     Number(u32),
     String(String),
     Bool(bool),
     Empty,
 }
+#[derive(Clone)]
 struct HtmlAttribute {
     name: String,
     value: HtmlValue,
@@ -131,6 +133,7 @@ impl Renderable for HtmlAttribute {
         }
     }
 }
+#[derive(Clone)]
 struct HtmlElement {
     name: String,
     attributes: Vec<HtmlAttribute>,
@@ -170,6 +173,19 @@ impl HtmlElement {
     }
 }
 
+trait SimpleElement {
+    #[allow(clippy::wrong_self_convention)]
+    fn into_html_element(&self) -> HtmlElement;
+}
+impl<T> Renderable for T
+where
+    T: SimpleElement,
+{
+    fn render(&self, cx: &mut Context) {
+        self.into_html_element().render(cx);
+    }
+}
+
 struct Div {
     inner: HtmlElement,
 }
@@ -184,9 +200,9 @@ impl Div {
         self
     }
 }
-impl Renderable for Div {
-    fn render(&self, cx: &mut Context) {
-        self.inner.render(cx)
+impl SimpleElement for Div {
+    fn into_html_element(&self) -> HtmlElement {
+        self.inner.clone()
     }
 }
 
