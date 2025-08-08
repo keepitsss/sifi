@@ -33,6 +33,30 @@ impl Display for Indentation {
     }
 }
 
+#[derive(Clone)]
+struct AnyElement(Rc<dyn Renderable>);
+impl Renderable for AnyElement {
+    fn render(&self, cx: &mut Context) {
+        self.0.render(cx);
+    }
+}
+trait IntoElement {
+    fn into_any_element(self) -> AnyElement;
+}
+impl<T> IntoElement for T
+where
+    T: Renderable + 'static,
+{
+    fn into_any_element(self) -> AnyElement {
+        AnyElement(Rc::new(self))
+    }
+}
+impl IntoElement for Rc<dyn Renderable> {
+    fn into_any_element(self) -> AnyElement {
+        AnyElement(self)
+    }
+}
+
 struct Context {
     indentation: Indentation,
     output: String,
@@ -41,10 +65,9 @@ trait Renderable {
     fn render(&self, cx: &mut Context);
 }
 impl Context {
-    fn child(&mut self, child: impl Into<Rc<dyn Renderable>>) -> &mut Self {
-        let child = child.into();
+    fn child(&mut self, child: impl IntoElement) -> &mut Self {
         self.indentation.level += 1;
-        child.render(self);
+        child.into_any_element().render(self);
         self.indentation.level -= 1;
         self
     }
@@ -54,23 +77,22 @@ impl Context {
         self.indentation.level -= 1;
         self
     }
-    fn root(&mut self, child: impl Renderable) -> &mut Self {
-        child.render(self);
-        self
+    fn render(&mut self, root: impl IntoElement) {
+        root.into_any_element().render(self);
     }
 }
 
 #[derive(Default)]
 struct Html {
-    body: Option<Rc<dyn Renderable>>,
+    body: Option<AnyElement>,
 }
 fn html() -> Html {
     Html::default()
 }
 impl Html {
-    fn body(mut self, child: Div) -> Self {
+    fn body(mut self, child: impl IntoElement) -> Self {
         assert!(self.body.is_none());
-        self.body = Some(Rc::new(child));
+        self.body = Some(child.into_any_element());
         self
     }
 }
@@ -169,12 +191,21 @@ impl Renderable for Div {
 }
 
 fn main() {
-    let html = html().body(div().child(div()).child(div()));
+    let html = html().body(
+        div().child(div()).child(
+            div()
+                .child(div())
+                .child(div())
+                .child(div())
+                .child(div())
+                .child(div()),
+        ),
+    );
 
     let mut cx = Context {
         indentation: Indentation::default(),
         output: String::new(),
     };
-    html.render(&mut cx);
+    cx.render(html);
     println!("{}", cx.output);
 }
