@@ -3,6 +3,8 @@ use std::{
     rc::Rc,
 };
 
+use bumpalo::Bump;
+
 macro_rules! cx_write {
     ($output:expr, $($arg:tt)*) => {
         write!($output.output, $($arg)+).unwrap()
@@ -51,43 +53,21 @@ where
         AnyElement(Rc::new(self))
     }
 }
-impl IntoElement for Rc<dyn Renderable> {
-    fn into_any_element(self) -> AnyElement {
-        AnyElement(self)
-    }
-}
 
-struct Context {
+struct Context<'a> {
     indentation: Indentation,
     output: String,
+    arena: &'a Bump,
 }
 trait Renderable {
     fn render(&self, cx: &mut Context);
 }
-impl Context {
-    fn child(&mut self, child: impl IntoElement) -> &mut Self {
-        self.indentation.level += 1;
-        child.into_any_element().render(self);
-        self.indentation.level -= 1;
-        self
-    }
-    fn child_primitive(&mut self, rendering: impl FnOnce(&mut Self)) -> &mut Self {
-        self.indentation.level += 1;
-        rendering(self);
-        self.indentation.level -= 1;
-        self
-    }
-    fn render(&mut self, root: impl IntoElement) {
-        root.into_any_element().render(self);
-    }
-}
 
-#[derive(Default)]
 struct Html {
     body: Option<AnyElement>,
 }
 fn html() -> Html {
-    Html::default()
+    Html { body: None }
 }
 impl Html {
     fn body(mut self, child: impl IntoElement) -> Self {
@@ -99,13 +79,15 @@ impl Html {
 impl Renderable for Html {
     fn render(&self, cx: &mut Context) {
         cx_writeln!(cx, "{}<html>", cx.indentation);
-        cx.child_primitive(|cx| {
-            cx_writeln!(cx, "{}<body>", cx.indentation);
-            if let Some(body) = &self.body {
-                cx.child(body.clone());
-            }
-            cx_writeln!(cx, "{}</body>", cx.indentation);
-        });
+        cx.indentation.level += 1;
+        cx_writeln!(cx, "{}<body>", cx.indentation);
+        if let Some(body) = &self.body {
+            cx.indentation.level += 1;
+            body.clone().into_any_element().render(cx);
+            cx.indentation.level -= 1;
+        }
+        cx_writeln!(cx, "{}</body>", cx.indentation);
+        cx.indentation.level -= 1;
         cx_writeln!(cx, "{}</html>", cx.indentation);
     }
 }
@@ -137,39 +119,27 @@ impl Renderable for HtmlAttribute {
 struct HtmlElement {
     name: String,
     attributes: Vec<HtmlAttribute>,
-    children: Vec<Rc<dyn Renderable>>,
+    children: Vec<AnyElement>,
 }
 impl Renderable for HtmlElement {
     fn render(&self, cx: &mut Context) {
-        {
-            cx_write!(cx, "{}<{}", cx.indentation, self.name);
-            for attribute in &self.attributes {
-                attribute.render(cx);
-            }
-            if self.children.is_empty() {
-                cx_writeln!(cx, "/>");
-                return;
-            }
-            cx_writeln!(cx, ">");
+        cx_write!(cx, "{}<{}", cx.indentation, self.name);
+        for attribute in &self.attributes {
+            attribute.render(cx);
         }
+        if self.children.is_empty() {
+            cx_writeln!(cx, "/>");
+            return;
+        }
+        cx_writeln!(cx, ">");
 
         for child in &self.children {
-            cx.child(child.clone());
+            cx.indentation.level += 1;
+            child.clone().into_any_element().render(&mut *cx);
+            cx.indentation.level -= 1;
         }
 
         cx_writeln!(cx, "{}</{}>", cx.indentation, self.name);
-    }
-}
-impl HtmlElement {
-    fn new(name: String) -> Self {
-        Self {
-            name,
-            attributes: vec![],
-            children: vec![],
-        }
-    }
-    fn child(&mut self, child: Rc<dyn Renderable>) {
-        self.children.push(child);
     }
 }
 
@@ -187,26 +157,37 @@ where
 }
 
 struct Div {
-    inner: HtmlElement,
+    children: Vec<AnyElement>,
 }
 fn div() -> Div {
     Div {
-        inner: HtmlElement::new("div".into()),
+        children: Vec::new(),
     }
 }
 impl Div {
     fn child(mut self, child: impl Renderable + 'static) -> Self {
-        self.inner.child(Rc::new(child));
+        self.children.push(child.into_any_element());
         self
     }
 }
 impl SimpleElement for Div {
     fn into_html_element(&self) -> HtmlElement {
-        self.inner.clone()
+        HtmlElement {
+            name: "div".into(),
+            attributes: Vec::new(),
+            children: self.children.clone(),
+        }
     }
 }
 
 fn main() {
+    let allocator = Bump::new();
+
+    let mut cx = Context {
+        indentation: Indentation::default(),
+        output: String::new(),
+        arena: &allocator,
+    };
     let html = html().body(
         div().child(div()).child(
             div()
@@ -217,11 +198,10 @@ fn main() {
                 .child(div()),
         ),
     );
+    html.into_any_element().render(&mut cx);
 
-    let mut cx = Context {
-        indentation: Indentation::default(),
-        output: String::new(),
-    };
-    cx.render(html);
-    println!("{}", cx.output);
+    let output = cx.output;
+    drop(allocator);
+
+    println!("{output}");
 }
