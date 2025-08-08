@@ -1,4 +1,18 @@
-use std::fmt::{Display, Write};
+use std::{
+    fmt::{Display, Write},
+    rc::Rc,
+};
+
+macro_rules! cx_write {
+    ($output:expr, $($arg:tt)*) => {
+        write!($output.output, $($arg)+).unwrap()
+    };
+}
+macro_rules! cx_writeln {
+    ($output:expr, $($arg:tt)*) => {
+        writeln!($output.output, $($arg)+).unwrap()
+    };
+}
 
 struct Indentation {
     level: u32,
@@ -21,39 +35,56 @@ impl Display for Indentation {
 
 struct Context {
     indentation: Indentation,
+    output: String,
 }
 trait Renderable {
-    fn render(self: Box<Self>, output: &mut String, cx: &mut Context) -> std::fmt::Result;
+    fn render(&self, cx: &mut Context);
+}
+impl Context {
+    fn child(&mut self, child: impl Into<Rc<dyn Renderable>>) -> &mut Self {
+        let child = child.into();
+        self.indentation.level += 1;
+        child.render(self);
+        self.indentation.level -= 1;
+        self
+    }
+    fn child_primitive(&mut self, rendering: impl FnOnce(&mut Self)) -> &mut Self {
+        self.indentation.level += 1;
+        rendering(self);
+        self.indentation.level -= 1;
+        self
+    }
+    fn root(&mut self, child: impl Renderable) -> &mut Self {
+        child.render(self);
+        self
+    }
 }
 
 #[derive(Default)]
 struct Html {
-    body: Option<Box<Div>>,
+    body: Option<Rc<dyn Renderable>>,
 }
 fn html() -> Html {
     Html::default()
 }
 impl Html {
-    fn body(mut self, child: Box<Div>) -> Self {
+    fn body(mut self, child: Div) -> Self {
         assert!(self.body.is_none());
-        self.body = Some(child);
+        self.body = Some(Rc::new(child));
         self
     }
 }
 impl Renderable for Html {
-    fn render(self: Box<Self>, output: &mut String, cx: &mut Context) -> std::fmt::Result {
-        writeln!(output, "{}<html>", cx.indentation)?;
-        cx.indentation.level += 1;
-        writeln!(output, "{}<body>", cx.indentation)?;
-        if let Some(body) = self.body {
-            cx.indentation.level += 1;
-            body.render(output, cx)?;
-            cx.indentation.level -= 1;
-        }
-        writeln!(output, "{}</body>", cx.indentation)?;
-        cx.indentation.level -= 1;
-        writeln!(output, "{}</html>", cx.indentation)?;
-        Ok(())
+    fn render(&self, cx: &mut Context) {
+        cx_writeln!(cx, "{}<html>", cx.indentation);
+        cx.child_primitive(|cx| {
+            cx_writeln!(cx, "{}<body>", cx.indentation);
+            if let Some(body) = &self.body {
+                cx.child(body.clone());
+            }
+            cx_writeln!(cx, "{}</body>", cx.indentation);
+        });
+        cx_writeln!(cx, "{}</html>", cx.indentation);
     }
 }
 
@@ -68,43 +99,40 @@ struct HtmlAttribute {
     value: HtmlValue,
 }
 impl Renderable for HtmlAttribute {
-    fn render(self: Box<Self>, output: &mut String, cx: &mut Context) -> std::fmt::Result {
-        let name = self.name;
-        match self.value {
-            HtmlValue::Number(number) => write!(output, " {name}={number}"),
-            HtmlValue::String(string) => write!(output, " {name}=\"{string}\""), // FIXME: escaping
-            HtmlValue::Bool(bool) => write!(output, " {name}={bool}"),
-            HtmlValue::Empty => write!(output, " {name}"),
+    fn render(&self, cx: &mut Context) {
+        let name = &self.name;
+        match &self.value {
+            HtmlValue::Number(number) => cx_write!(cx, " {name}={number}"),
+            HtmlValue::String(string) => cx_write!(cx, " {name}=\"{string}\""), // FIXME: escaping
+            HtmlValue::Bool(bool) => cx_write!(cx, " {name}={bool}"),
+            HtmlValue::Empty => cx_write!(cx, " {name}"),
         }
     }
 }
 struct HtmlElement {
     name: String,
     attributes: Vec<HtmlAttribute>,
-    children: Vec<Box<dyn Renderable>>,
+    children: Vec<Rc<dyn Renderable>>,
 }
 impl Renderable for HtmlElement {
-    fn render(self: Box<Self>, output: &mut String, cx: &mut Context) -> std::fmt::Result {
+    fn render(&self, cx: &mut Context) {
         {
-            write!(output, "{}<{}", cx.indentation, self.name)?;
-            for attribute in self.attributes {
-                Box::new(attribute).render(output, cx)?;
+            cx_write!(cx, "{}<{}", cx.indentation, self.name);
+            for attribute in &self.attributes {
+                attribute.render(cx);
             }
             if self.children.is_empty() {
-                writeln!(output, "/>")?;
-                return Ok(());
+                cx_writeln!(cx, "/>");
+                return;
             }
-            writeln!(output, ">")?;
+            cx_writeln!(cx, ">");
         }
 
-        cx.indentation.level += 1;
-        for child in self.children {
-            child.render(output, cx)?;
+        for child in &self.children {
+            cx.child(child.clone());
         }
-        cx.indentation.level -= 1;
 
-        writeln!(output, "{}</{}>", cx.indentation, self.name)?;
-        Ok(())
+        cx_writeln!(cx, "{}</{}>", cx.indentation, self.name);
     }
 }
 impl HtmlElement {
@@ -115,7 +143,7 @@ impl HtmlElement {
             children: vec![],
         }
     }
-    fn child(&mut self, child: Box<dyn Renderable>) {
+    fn child(&mut self, child: Rc<dyn Renderable>) {
         self.children.push(child);
     }
 }
@@ -123,20 +151,20 @@ impl HtmlElement {
 struct Div {
     inner: HtmlElement,
 }
-fn div() -> Box<Div> {
-    Box::new(Div {
+fn div() -> Div {
+    Div {
         inner: HtmlElement::new("div".into()),
-    })
+    }
 }
 impl Div {
-    fn child(mut self: Box<Self>, child: Box<dyn Renderable>) -> Box<Self> {
-        self.inner.child(child);
+    fn child(mut self, child: impl Renderable + 'static) -> Self {
+        self.inner.child(Rc::new(child));
         self
     }
 }
 impl Renderable for Div {
-    fn render(self: Box<Self>, output: &mut String, cx: &mut Context) -> std::fmt::Result {
-        Box::new(self.inner).render(output, cx)
+    fn render(&self, cx: &mut Context) {
+        self.inner.render(cx)
     }
 }
 
@@ -145,8 +173,8 @@ fn main() {
 
     let mut cx = Context {
         indentation: Indentation::default(),
+        output: String::new(),
     };
-    let mut output = String::new();
-    Renderable::render(Box::new(html), &mut output, &mut cx).unwrap();
-    println!("{output}");
+    html.render(&mut cx);
+    println!("{}", cx.output);
 }
