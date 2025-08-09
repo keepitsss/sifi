@@ -70,39 +70,54 @@ trait Renderable {
     fn render(&self, cx: &mut Context);
 }
 
-struct Html<'rendering> {
-    body: Option<AnyElement<'rendering>>,
+struct Html<'re> {
+    body: Body<'re>,
 }
-
-impl Renderable for Html<'_> {
-    fn render(&self, cx: &mut Context) {
-        cx_writeln!(cx, "{}<html>", cx.indentation);
-        cx.indentation.level += 1;
-        cx_writeln!(cx, "{}<body>", cx.indentation);
-        if let Some(body) = &self.body {
-            cx.indentation.level += 1;
-            body.render(cx);
-            cx.indentation.level -= 1;
+#[derive(Clone)]
+struct Body<'re> {
+    children: Vec<'re, AnyElement<'re>>,
+}
+impl SimpleElement for Body<'_> {
+    fn into_html_element<'re, 'arena>(&self, _arena: &'arena Bump) -> HtmlElement<'re>
+    where
+        'arena: 're,
+        Self: 're,
+    {
+        HtmlElement {
+            name: "body",
+            attributes: &[],
+            children: self.children.clone().into_bump_slice(),
         }
-        cx_writeln!(cx, "{}</body>", cx.indentation);
-        cx.indentation.level -= 1;
-        cx_writeln!(cx, "{}</html>", cx.indentation);
+    }
+}
+impl SimpleElement for Html<'_> {
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    where
+        'arena: 're,
+        Self: 're,
+    {
+        HtmlElement {
+            name: "html",
+            attributes: &[],
+            children: bumpalo::vec![in arena; self.body.clone().into_any_element(arena)]
+                .into_bump_slice(),
+        }
     }
 }
 
 #[derive(Clone)]
-enum HtmlValue {
+enum HtmlValue<'re> {
     Number(u32),
-    String(String),
+    String(&'re str),
     Bool(bool),
     Empty,
 }
 #[derive(Clone)]
-struct HtmlAttribute {
-    name: String,
-    value: HtmlValue,
+struct HtmlAttribute<'re> {
+    name: &'re str,
+    value: HtmlValue<'re>,
 }
-impl Renderable for HtmlAttribute {
+impl Renderable for HtmlAttribute<'_> {
     fn render(&self, cx: &mut Context) {
         let name = &self.name;
         match &self.value {
@@ -114,10 +129,10 @@ impl Renderable for HtmlAttribute {
     }
 }
 #[derive(Clone)]
-struct HtmlElement<'rendering> {
-    name: &'rendering str,
-    attributes: &'rendering [HtmlAttribute],
-    children: &'rendering [AnyElement<'rendering>],
+struct HtmlElement<'re> {
+    name: &'re str,
+    attributes: &'re [HtmlAttribute<'re>],
+    children: &'re [AnyElement<'re>],
 }
 impl Renderable for HtmlElement<'_> {
     fn render(&self, cx: &mut Context) {
@@ -143,9 +158,10 @@ impl Renderable for HtmlElement<'_> {
 
 trait SimpleElement {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element<'rendering, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'rendering>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
     where
-        Self: 'rendering;
+        'arena: 're,
+        Self: 're;
 }
 impl<T> Renderable for T
 where
@@ -161,9 +177,10 @@ struct Div<'a> {
 }
 
 impl SimpleElement for Div<'_> {
-    fn into_html_element<'rendering, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'rendering>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
     where
-        Self: 'rendering,
+        'arena: 're,
+        Self: 're,
     {
         HtmlElement {
             name: arena.alloc("div"),
@@ -183,13 +200,14 @@ fn main() {
     };
     let arena = cx.arena;
 
-    let mut html = html();
+    let mut html = html(arena);
     let div2 = div(arena).with_child(arena, div(arena));
     html.set_body(arena, div2);
 
     html.render(&mut cx);
 
     let output = cx.output;
+    drop(html);
     drop(allocator);
 
     println!("{output}");
@@ -214,12 +232,19 @@ impl<'re> Html<'re> {
     where
         'arena: 're,
     {
-        self.body = Some(body.into_any_element(arena));
+        self.body.children.push(body.into_any_element(arena));
     }
 }
 
-fn html<'re>() -> Html<'re> {
-    Html { body: None }
+fn html<'re, 'arena>(arena: &'arena Bump) -> Html<'re>
+where
+    'arena: 're,
+{
+    Html {
+        body: Body {
+            children: Vec::new_in(arena),
+        },
+    }
 }
 
 fn div<'re, 'arena>(arena: &'arena Bump) -> Div<'re>
