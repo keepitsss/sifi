@@ -59,6 +59,7 @@ where
 }
 
 pub struct Html<'re> {
+    pub head: Head<'re>,
     pub body: Body<'re>,
 }
 impl<'re> Html<'re> {
@@ -77,14 +78,31 @@ impl SimpleElement for Html<'_> {
         HtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; self.body.clone().into_any_element(arena)]
+            children: bumpalo::vec![in arena; self.head.clone().into_any_element(arena), self.body.clone().into_any_element(arena)]
                 .into_bump_slice(),
         }
     }
 }
 #[derive(Clone)]
+pub struct Head<'re> {
+    pub children: Vec<'re, AnyElement<'re>>,
+}
+impl SimpleElement for Head<'_> {
+    fn into_html_element<'re, 'arena>(&self, _arena: &'arena Bump) -> HtmlElement<'re>
+    where
+        'arena: 're,
+        Self: 're,
+    {
+        HtmlElement {
+            name: "head",
+            attributes: &[],
+            children: self.children.clone().into_bump_slice(),
+        }
+    }
+}
+#[derive(Clone)]
 pub struct Body<'re> {
-    children: Vec<'re, AnyElement<'re>>,
+    pub children: Vec<'re, AnyElement<'re>>,
 }
 impl SimpleElement for Body<'_> {
     fn into_html_element<'re, 'arena>(&self, _arena: &'arena Bump) -> HtmlElement<'re>
@@ -168,15 +186,19 @@ where
 }
 
 pub struct Div<'re> {
+    pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
 }
 impl<'re> Div<'re> {
-    pub fn add_child(&mut self, div1: impl IntoElement + 're) {
+    pub fn child(mut self, child: impl IntoElement + 're) -> Self {
         self.children
-            .push(div1.into_any_element(self.children.bump()));
+            .push(child.into_any_element(self.children.bump()));
+        self
     }
-    pub fn with_child(mut self, child: impl IntoElement + 're) -> Self {
-        self.add_child(child.into_any_element(self.children.bump()));
+    pub fn id(mut self, id: &str) -> Self {
+        assert!(self.id.is_none());
+        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        self.id = Some(self.children.bump().alloc_str(id));
         self
     }
 }
@@ -186,9 +208,16 @@ impl SimpleElement for Div<'_> {
         'arena: 're,
         Self: 're,
     {
+        let mut attrs = Vec::new_in(arena);
+        if let Some(id) = self.id {
+            attrs.push(HtmlAttribute {
+                name: "id",
+                value: HtmlValue::String(id),
+            });
+        }
         HtmlElement {
             name: arena.alloc("div"),
-            attributes: &[],
+            attributes: attrs.into_bump_slice(),
             children: self.children.clone().into_bump_slice(),
         }
     }
@@ -196,6 +225,9 @@ impl SimpleElement for Div<'_> {
 
 pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
     Html {
+        head: Head {
+            children: Vec::new_in(arena),
+        },
         body: Body {
             children: Vec::new_in(arena),
         },
@@ -204,6 +236,7 @@ pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
 
 pub fn div<'re, 'arena: 're>(arena: &'arena Bump) -> Div<'re> {
     Div {
+        id: None,
         children: Vec::new_in(arena),
     }
 }
