@@ -1,7 +1,4 @@
-use std::{
-    any::Any,
-    fmt::{Display, Write},
-};
+use std::fmt::{Display, Write};
 
 use bumpalo::Bump;
 
@@ -45,15 +42,17 @@ impl Renderable for AnyElement<'_> {
 trait IntoElement {
     fn into_any_element<'a, 'arena>(self, arena: &'arena Bump) -> AnyElement<'a>
     where
-        'arena: 'a;
+        'arena: 'a,
+        Self: 'a;
 }
 impl<T> IntoElement for T
 where
-    T: Renderable + 'static,
+    T: Renderable,
 {
     fn into_any_element<'a, 'arena>(self, arena: &'arena Bump) -> AnyElement<'a>
     where
         'arena: 'a,
+        T: 'a,
     {
         let value = arena.alloc(self);
         AnyElement(value)
@@ -74,7 +73,7 @@ struct Html<'a> {
 }
 
 impl<'a> Html<'a> {
-    fn body<'arena>(&mut self, arena: &'arena Bump, child: impl IntoElement) -> &mut Self
+    fn body<'arena>(&mut self, arena: &'arena Bump, child: impl IntoElement + 'a) -> &mut Self
     where
         'arena: 'a,
     {
@@ -152,7 +151,9 @@ impl Renderable for HtmlElement<'_> {
 
 trait SimpleElement {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element<'a, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'a>;
+    fn into_html_element<'a, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'a>
+    where
+        Self: 'a;
 }
 impl<T> Renderable for T
 where
@@ -167,22 +168,24 @@ struct Div<'a> {
     children: Vec<AnyElement<'a>>,
 }
 
-impl<'a> Div<'a> {
+impl<'rendering> Div<'rendering> {
     fn child<'arena>(mut self, arena: &'arena Bump, child: impl Renderable + 'static) -> Self
     where
-        'arena: 'a,
+        'arena: 'rendering,
     {
         self.children.push(child.into_any_element(arena));
         self
     }
 }
-impl<'elem> SimpleElement for Div<'elem> {
-    fn into_html_element<'a, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'a> {
-        // TODO: copy vec of children to arena and pass reference
+impl SimpleElement for Div<'_> {
+    fn into_html_element<'rendering, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'rendering>
+    where
+        Self: 'rendering,
+    {
         HtmlElement {
             name: arena.alloc("div"),
             attributes: &[],
-            children: &[], // FIXME
+            children: self.children.clone().leak(),
         }
     }
 }
