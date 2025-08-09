@@ -1,6 +1,6 @@
 //! 're = 'rendering
 
-use std::fmt::{Display, Write};
+use std::fmt::Write;
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -15,63 +15,70 @@ macro_rules! cx_writeln {
     };
 }
 
-struct Indentation {
-    level: u32,
-    width: u8,
+mod utils;
+
+trait Renderable {
+    fn render(&self, cx: &mut Context);
 }
-impl Default for Indentation {
-    fn default() -> Self {
-        Self { level: 0, width: 2 }
-    }
-}
-impl Display for Indentation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            " ".repeat((self.level * self.width as u32) as usize)
-        )
-    }
+
+struct Context<'re> {
+    indentation: utils::Indentation,
+    output: String,
+    arena: &'re Bump,
 }
 
 #[derive(Clone, Copy)]
-struct AnyElement<'rendering>(&'rendering dyn Renderable);
+struct AnyElement<'re>(&'re dyn Renderable);
+
+trait IntoElement {
+    fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
+    where
+        'arena: 're,
+        Self: 're;
+}
+
+//
+
 impl Renderable for AnyElement<'_> {
     fn render(&self, cx: &mut Context) {
         self.0.render(cx);
     }
 }
-trait IntoElement {
-    fn into_any_element<'rendering, 'arena>(self, arena: &'arena Bump) -> AnyElement<'rendering>
-    where
-        'arena: 'rendering,
-        Self: 'rendering;
-}
 impl<T> IntoElement for T
 where
     T: Renderable,
 {
-    fn into_any_element<'rendering, 'arena>(self, arena: &'arena Bump) -> AnyElement<'rendering>
+    fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
     where
-        'arena: 'rendering,
-        T: 'rendering,
+        'arena: 're,
+        T: 're,
     {
         let value = arena.alloc(self);
         AnyElement(value)
     }
 }
 
-struct Context<'rendering> {
-    indentation: Indentation,
-    output: String,
-    arena: &'rendering Bump,
-}
-trait Renderable {
-    fn render(&self, cx: &mut Context);
-}
-
 struct Html<'re> {
     body: Body<'re>,
+}
+impl<'re> Html<'re> {
+    fn set_body<'arena: 're>(&mut self, arena: &'arena Bump, body: impl IntoElement + 're) {
+        self.body.children.push(body.into_any_element(arena));
+    }
+}
+impl SimpleElement for Html<'_> {
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    where
+        'arena: 're,
+        Self: 're,
+    {
+        HtmlElement {
+            name: "html",
+            attributes: &[],
+            children: bumpalo::vec![in arena; self.body.clone().into_any_element(arena)]
+                .into_bump_slice(),
+        }
+    }
 }
 #[derive(Clone)]
 struct Body<'re> {
@@ -87,20 +94,6 @@ impl SimpleElement for Body<'_> {
             name: "body",
             attributes: &[],
             children: self.children.clone().into_bump_slice(),
-        }
-    }
-}
-impl SimpleElement for Html<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
-    where
-        'arena: 're,
-        Self: 're,
-    {
-        HtmlElement {
-            name: "html",
-            attributes: &[],
-            children: bumpalo::vec![in arena; self.body.clone().into_any_element(arena)]
-                .into_bump_slice(),
         }
     }
 }
@@ -172,10 +165,23 @@ where
     }
 }
 
-struct Div<'a> {
-    children: Vec<'a, AnyElement<'a>>,
+struct Div<'re> {
+    children: Vec<'re, AnyElement<'re>>,
 }
-
+impl<'re> Div<'re> {
+    fn add_child(&mut self, div1: impl IntoElement + 're) {
+        self.children
+            .push(div1.into_any_element(self.children.bump()));
+    }
+    fn with_child<'arena: 're>(
+        mut self,
+        arena: &'arena Bump,
+        child: impl IntoElement + 're,
+    ) -> Self {
+        self.add_child(child.into_any_element(arena));
+        self
+    }
+}
 impl SimpleElement for Div<'_> {
     fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
     where
@@ -194,7 +200,7 @@ fn main() {
     let allocator = Bump::new();
 
     let mut cx = Context {
-        indentation: Indentation::default(),
+        indentation: utils::Indentation::default(),
         output: String::new(),
         arena: &allocator,
     };
@@ -213,33 +219,7 @@ fn main() {
     println!("{output}");
 }
 
-impl<'re> Div<'re> {
-    fn add_child(&mut self, div1: impl IntoElement + 're) {
-        self.children
-            .push(div1.into_any_element(self.children.bump()));
-    }
-    fn with_child<'arena>(mut self, arena: &'arena Bump, child: impl IntoElement + 're) -> Self
-    where
-        'arena: 're,
-    {
-        self.add_child(child.into_any_element(arena));
-        self
-    }
-}
-
-impl<'re> Html<'re> {
-    fn set_body<'arena>(&mut self, arena: &'arena Bump, body: impl IntoElement + 're)
-    where
-        'arena: 're,
-    {
-        self.body.children.push(body.into_any_element(arena));
-    }
-}
-
-fn html<'re, 'arena>(arena: &'arena Bump) -> Html<'re>
-where
-    'arena: 're,
-{
+fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
     Html {
         body: Body {
             children: Vec::new_in(arena),
@@ -247,10 +227,7 @@ where
     }
 }
 
-fn div<'re, 'arena>(arena: &'arena Bump) -> Div<'re>
-where
-    'arena: 're,
-{
+fn div<'re, 'arena: 're>(arena: &'arena Bump) -> Div<'re> {
     Div {
         children: Vec::new_in(arena),
     }
