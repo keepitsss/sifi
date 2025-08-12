@@ -15,8 +15,13 @@ fn main() {
     let arena = cx.arena;
 
     let mut html = html(arena);
-    let elem = div(arena).id("id1");
-    html.add_to_body(div(arena).id("id2").child(elem));
+    html.add_to_body(
+        div(arena)
+            .id("id2")
+            .class("some-class")
+            .class("other")
+            .child(div(arena).id("id1")),
+    );
 
     html.render(&mut cx);
 

@@ -199,19 +199,26 @@ where
 }
 
 pub struct Div<'re> {
+    pub classes: Vec<'re, &'re str>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
+    arena: &'re Bump,
 }
 impl<'re> Div<'re> {
     pub fn child(mut self, child: impl IntoElement + 're) -> Self {
-        self.children
-            .push(child.into_any_element(self.children.bump()));
+        self.children.push(child.into_any_element(self.arena));
         self
     }
     pub fn id(mut self, id: &str) -> Self {
         assert!(self.id.is_none());
         assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        self.id = Some(self.children.bump().alloc_str(id));
+        self.id = Some(self.arena.alloc_str(id));
+        self
+    }
+    pub fn class(mut self, class: &str) -> Self {
+        assert!(!self.classes.contains(&class));
+        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        self.classes.push(self.arena.alloc_str(class));
         self
     }
 }
@@ -227,6 +234,12 @@ impl SimpleElement for Div<'_> {
                 name: "id",
                 value: HtmlValue::String(id),
             });
+        }
+        if !self.classes.is_empty() {
+            attrs.push(HtmlAttribute {
+                name: "class",
+                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+            })
         }
 
         HtmlElement {
@@ -260,7 +273,9 @@ pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
 
 pub fn div<'re, 'arena: 're>(arena: &'arena Bump) -> Div<'re> {
     Div {
+        classes: Vec::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
+        arena,
     }
 }
