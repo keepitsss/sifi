@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use bumpalo::Bump;
 use html_components::*;
 
@@ -8,12 +10,13 @@ fn main() {
         indentation: utils::Indentation::default(),
         output: String::new(),
         arena: &allocator,
+        ids: HashSet::new(),
     };
     let arena = cx.arena;
 
     let mut html = html(arena);
-    let elem = div(arena).id("hi");
-    html.add_to_body(div(arena).id("hi").child(elem));
+    let elem = div(arena).id("id1");
+    html.add_to_body(div(arena).id("id2").child(elem));
 
     html.render(&mut cx);
 

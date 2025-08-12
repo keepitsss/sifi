@@ -1,6 +1,6 @@
 //! 're = 'rendering
 
-use std::fmt::Write;
+use std::{collections::HashSet, fmt::Write};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -25,6 +25,7 @@ pub struct Context<'re> {
     pub indentation: utils::Indentation,
     pub output: String,
     pub arena: &'re Bump,
+    pub ids: HashSet<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -141,6 +142,13 @@ impl Renderable for HtmlAttribute<'_> {
         }
     }
 }
+
+pub struct HtmlElementLazy<T> {
+    pub inner: T,
+    pub pre_render: PreRenderFn<T>,
+}
+
+type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), String>;
 #[derive(Clone)]
 pub struct HtmlElement<'re> {
     pub name: &'re str,
@@ -175,12 +183,17 @@ pub trait SimpleElement {
     where
         'arena: 're,
         Self: 're;
+
+    fn pre_render_checks(&self, _cx: &mut Context) -> Result<(), String> {
+        Ok(())
+    }
 }
 impl<T> Renderable for T
 where
     T: SimpleElement,
 {
     fn render(&self, cx: &mut Context) {
+        self.pre_render_checks(cx).unwrap(); // FIXME
         self.into_html_element(cx.arena).render(cx);
     }
 }
@@ -215,11 +228,22 @@ impl SimpleElement for Div<'_> {
                 value: HtmlValue::String(id),
             });
         }
+
         HtmlElement {
             name: arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
             children: self.children.clone().into_bump_slice(),
         }
+    }
+
+    fn pre_render_checks(&self, cx: &mut Context) -> Result<(), String> {
+        if let Some(id) = self.id {
+            if cx.ids.contains(id) {
+                return Err(format!("'{id}' id duplicate"));
+            }
+            cx.ids.insert(id.into());
+        }
+        Ok(())
     }
 }
 
