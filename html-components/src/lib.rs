@@ -221,6 +221,16 @@ impl<'re> Div<'re> {
         self.classes.push(self.arena.alloc_str(class));
         self
     }
+    pub fn classes<'a>(mut self, classes: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut count = 0;
+        for class in classes.into_iter() {
+            self = self.class(class);
+            count += 1;
+        }
+        assert_ne!(count, 0, "empty classes provided");
+        assert_ne!(count, 1, "use 'class' method to provide one class");
+        self
+    }
 }
 impl SimpleElement for Div<'_> {
     fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>

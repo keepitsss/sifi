@@ -20,6 +20,7 @@ fn main() {
             .id("id2")
             .class("some-class")
             .class("other")
+            .classes(["some1", "some2"])
             .child(div(arena).id("id1")),
     );
 
