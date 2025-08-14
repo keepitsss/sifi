@@ -1,6 +1,6 @@
 //! 're = 'rendering
 
-use std::{collections::HashSet, fmt::Write};
+use std::{cell::Cell, collections::HashSet, fmt::Write};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -17,8 +17,8 @@ macro_rules! cx_writeln {
 
 pub mod utils;
 
-pub trait Renderable {
-    fn render(&self, cx: &mut Context);
+pub trait Renderable<'re> {
+    fn render(&self, cx: &mut Context<'re>);
 }
 
 pub struct Context<'re> {
@@ -29,14 +29,14 @@ pub struct Context<'re> {
 }
 
 #[derive(Clone, Copy)]
-pub struct AnyElement<'re>(pub &'re dyn Renderable);
-impl Renderable for AnyElement<'_> {
-    fn render(&self, cx: &mut Context) {
+pub struct AnyElement<'re>(pub &'re dyn Renderable<'re>);
+impl<'re> Renderable<'re> for AnyElement<'re> {
+    fn render(&self, cx: &mut Context<'re>) {
         self.0.render(cx);
     }
 }
-pub trait Component: Renderable {
-    fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
+pub trait Component<'re>: Renderable<'re> {
+    fn into_any_element<'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
     where
         'arena: 're,
         Self: 're + Sized,
@@ -49,16 +49,28 @@ pub trait Component: Renderable {
 pub struct Html<'re> {
     pub head: Head<'re>,
     pub body: Body<'re>,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
+}
+impl<'re> PreRenderHooks<'re> for Html<'re> {
+    type This = Self;
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
+        unsafe {
+            self.pre_render_hook.set_pre_render_hook(hook);
+        }
+    }
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
+        self.pre_render_hook.take_pre_render_hook()
+    }
 }
 impl<'re> Html<'re> {
-    pub fn add_to_body(&mut self, body: impl Component + 're) {
+    pub fn add_to_body(&mut self, body: impl Component<'re> + 're) {
         self.body
             .children
             .push(body.into_any_element(self.body.children.bump()));
     }
 }
-impl SimpleElement for Html<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+impl<'re> SimpleElement<'re> for Html<'re> {
+    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -66,22 +78,33 @@ impl SimpleElement for Html<'_> {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; arena.alloc(self.head.clone()) as &dyn Renderable, arena.alloc(self.body.clone())]
+            children: bumpalo::vec![in arena; arena.alloc(self.head.into_html_element(arena)) as &dyn Renderable, arena.alloc(self.body.into_html_element(arena))]
                 .into_bump_slice(),
         }
     }
 }
-#[derive(Clone)]
 pub struct Head<'re> {
     pub styles: Vec<'re, &'re str>,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl<'re> Head<'re> {
     pub fn add_style<'arena: 're>(&mut self, style: &str) {
         self.styles.push(self.styles.bump().alloc_str(style.trim()));
     }
 }
-impl SimpleElement for Head<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+impl<'re> PreRenderHooks<'re> for Head<'re> {
+    type This = Self;
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
+        unsafe {
+            self.pre_render_hook.set_pre_render_hook(hook);
+        }
+    }
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
+        self.pre_render_hook.take_pre_render_hook()
+    }
+}
+impl<'re> SimpleElement<'re> for Head<'re> {
+    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -99,7 +122,7 @@ impl SimpleElement for Head<'_> {
 }
 #[derive(Clone)]
 struct Style<'re>(Vec<'re, &'re str>);
-impl Renderable for Style<'_> {
+impl<'re> Renderable<'re> for Style<'re> {
     fn render(&self, cx: &mut Context) {
         assert!(!self.0.is_empty());
         cx_writeln!(cx, "{}<style>", cx.indentation);
@@ -114,25 +137,36 @@ impl Renderable for Style<'_> {
     }
 }
 
-impl Renderable for &str {
+impl<'re> Renderable<'re> for &'re str {
     fn render(&self, cx: &mut Context) {
         write!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
-impl Renderable for &mut str {
+impl<'re> Renderable<'re> for &'re mut str {
     fn render(&self, cx: &mut Context) {
         write!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
-impl Component for &str {}
-impl Component for &mut str {}
+impl<'re> Component<'re> for &'re str {}
+impl<'re> Component<'re> for &'re mut str {}
 
-#[derive(Clone)]
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
-impl SimpleElement for Body<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+impl<'re> PreRenderHooks<'re> for Body<'re> {
+    type This = Self;
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
+        unsafe {
+            self.pre_render_hook.set_pre_render_hook(hook);
+        }
+    }
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
+        self.pre_render_hook.take_pre_render_hook()
+    }
+}
+impl<'re> SimpleElement<'re> for Body<'re> {
+    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -157,7 +191,7 @@ pub struct HtmlAttribute<'re> {
     name: &'re str,
     value: HtmlValue<'re>,
 }
-impl Renderable for HtmlAttribute<'_> {
+impl<'re> Renderable<'re> for HtmlAttribute<'re> {
     fn render(&self, cx: &mut Context) {
         let name = &self.name;
         match &self.value {
@@ -179,10 +213,10 @@ type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), std::string::String>;
 pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
     pub attributes: &'re [HtmlAttribute<'re>],
-    pub children: &'re [&'re dyn Renderable],
+    pub children: &'re [&'re dyn Renderable<'re>],
 }
-impl Renderable for GenericHtmlElement<'_> {
-    fn render(&self, cx: &mut Context) {
+impl<'re> Renderable<'re> for GenericHtmlElement<'re> {
+    fn render(&self, cx: &mut Context<'re>) {
         cx_write!(cx, "{}<{}", cx.indentation, self.name);
         for attribute in self.attributes {
             attribute.render(cx);
@@ -203,32 +237,94 @@ impl Renderable for GenericHtmlElement<'_> {
     }
 }
 
-pub trait SimpleElement {
+pub trait SimpleElement<'re>: PreRenderHooks<'re, This = Self> {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're;
-
-    fn pre_render_checks(&self, _cx: &mut Context) -> Result<(), std::string::String> {
-        Ok(())
-    }
 }
 fn strip_anyelement<'re, 'arena: 're>(
     arena: &'arena Bump,
     children: &Vec<'re, AnyElement<'re>>,
-) -> &'re [&'re dyn Renderable] {
+) -> &'re [&'re dyn Renderable<'re>] {
     let mut children_clone = Vec::new_in(arena);
     children_clone.extend(children.into_iter().map(|x| x.0));
     children_clone.into_bump_slice()
 }
-impl<T> Renderable for T
+impl<'re, T> Renderable<'re> for T
 where
-    T: SimpleElement,
+    T: SimpleElement<'re>,
 {
-    fn render(&self, cx: &mut Context) {
-        self.pre_render_checks(cx).unwrap(); // FIXME
+    fn render(&self, cx: &mut Context<'re>) {
+        if let Some(hook) = self.take_pre_render_hook() {
+            hook(self, cx);
+        }
         self.into_html_element(cx.arena).render(cx);
+    }
+}
+
+type Hook<'re, This> = &'re mut dyn FnMut(&This, &mut Context);
+pub trait PreRenderHooks<'re>: Sized
+where
+    Self: 're,
+{
+    type This;
+    /// # Safety
+    /// Hook should be unset(or taken out)
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self::This, &mut Context) + 're);
+
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self::This>>;
+
+    fn with_pre_render_hook(
+        self,
+        mut new_hook: impl FnMut(&Self::This, &mut Context) + 're,
+    ) -> Self {
+        match self.take_pre_render_hook() {
+            Some(prev_hook) => {
+                // SAFETY: hook is taken out
+                unsafe {
+                    self.set_pre_render_hook(move |this, cx| {
+                        prev_hook(this, cx);
+                        new_hook(this, cx);
+                    });
+                }
+            }
+            None => {
+                // SAFETY: hook is taken out
+                unsafe {
+                    self.set_pre_render_hook(new_hook);
+                }
+            }
+        }
+        self
+    }
+}
+
+struct PreRenderHookStorage<'re, This> {
+    hook: Cell<Option<Hook<'re, This>>>,
+    arena: &'re Bump,
+}
+impl<'re, T> PreRenderHookStorage<'re, T> {
+    fn new_in(arena: &'re Bump) -> Self {
+        PreRenderHookStorage {
+            hook: Cell::new(None),
+            arena,
+        }
+    }
+}
+impl<'re, This> PreRenderHooks<'re> for PreRenderHookStorage<'re, This> {
+    type This = This;
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, This>> {
+        self.hook.take()
+    }
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&This, &mut Context) + 're) {
+        assert!(self.hook.take().is_none());
+        let hook = self.arena.alloc(hook) as Hook<'re, This>;
+        self.hook
+            .set(Some(self.arena.alloc(|this: &This, cx: &mut Context| {
+                hook(this, cx);
+            })));
     }
 }
 
@@ -237,10 +333,22 @@ pub struct Div<'re> {
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
-impl Component for Div<'_> {}
+impl<'re> PreRenderHooks<'re> for Div<'re> {
+    type This = Self;
+    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
+        unsafe {
+            self.pre_render_hook.set_pre_render_hook(hook);
+        }
+    }
+    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
+        self.pre_render_hook.take_pre_render_hook()
+    }
+}
+impl<'re> Component<'re> for Div<'re> {}
 impl<'re> Div<'re> {
-    pub fn child(mut self, child: impl Component + 're) -> Self {
+    pub fn child(mut self, child: impl Component<'re> + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
@@ -249,7 +357,13 @@ impl<'re> Div<'re> {
         assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
         assert!(!id.is_empty());
         self.id = Some(self.arena.alloc_str(id));
-        self
+        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
+            let id = this.id.unwrap();
+            if cx.ids.contains(id) {
+                panic!("'{id}' id duplicate");
+            }
+            cx.ids.insert(cx.arena.alloc_str(id));
+        })
     }
     pub fn class(mut self, class: &str) -> Self {
         assert!(!self.classes.contains(&class));
@@ -269,8 +383,8 @@ impl<'re> Div<'re> {
         self
     }
 }
-impl SimpleElement for Div<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+impl<'re> SimpleElement<'re> for Div<'re> {
+    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -295,26 +409,19 @@ impl SimpleElement for Div<'_> {
             children: strip_anyelement(arena, &self.children),
         }
     }
-
-    fn pre_render_checks(&self, cx: &mut Context) -> Result<(), std::string::String> {
-        if let Some(id) = self.id {
-            if cx.ids.contains(id) {
-                return Err(format!("'{id}' id duplicate"));
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        }
-        Ok(())
-    }
 }
 
 pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
     Html {
         head: Head {
             styles: Vec::new_in(arena),
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
         },
         body: Body {
             children: Vec::new_in(arena),
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
         },
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
 
@@ -324,5 +431,6 @@ pub fn div<'re, 'arena: 're>(arena: &'arena Bump) -> Div<'re> {
         id: None,
         children: Vec::new_in(arena),
         arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
