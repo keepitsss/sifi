@@ -1,4 +1,3 @@
-
 use std::fmt::Display;
 
 pub struct Indentation {

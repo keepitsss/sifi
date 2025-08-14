@@ -23,9 +23,9 @@ pub trait Renderable {
 
 pub struct Context<'re> {
     pub indentation: utils::Indentation,
-    pub output: String,
+    pub output: std::string::String,
     pub arena: &'re Bump,
-    pub ids: HashSet<String>,
+    pub ids: HashSet<&'re str>,
 }
 
 #[derive(Clone, Copy)]
@@ -51,7 +51,7 @@ pub struct Html<'re> {
     pub body: Body<'re>,
 }
 impl<'re> Html<'re> {
-    pub fn add_to_body<'arena: 're>(&mut self, body: impl Component + 're) {
+    pub fn add_to_body(&mut self, body: impl Component + 're) {
         self.body
             .children
             .push(body.into_any_element(self.body.children.bump()));
@@ -73,7 +73,12 @@ impl SimpleElement for Html<'_> {
 }
 #[derive(Clone)]
 pub struct Head<'re> {
-    pub children: Vec<'re, AnyElement<'re>>,
+    pub styles: Vec<'re, &'re str>,
+}
+impl<'re> Head<'re> {
+    pub fn add_style<'arena: 're>(&mut self, style: &str) {
+        self.styles.push(self.styles.bump().alloc_str(style));
+    }
 }
 impl SimpleElement for Head<'_> {
     fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
@@ -81,13 +86,47 @@ impl SimpleElement for Head<'_> {
         'arena: 're,
         Self: 're,
     {
+        let mut children = Vec::new_in(arena);
+        if !self.styles.is_empty() {
+            children.push(arena.alloc(Style(self.styles.clone())) as &dyn Renderable);
+        }
         GenericHtmlElement {
             name: "head",
             attributes: &[],
-            children: strip_anyelement(arena, &self.children),
+            children: children.into_bump_slice(),
         }
     }
 }
+#[derive(Clone)]
+struct Style<'re>(Vec<'re, &'re str>);
+impl Renderable for Style<'_> {
+    fn render(&self, cx: &mut Context) {
+        assert!(!self.0.is_empty());
+        cx_writeln!(cx, "{}<style>", cx.indentation);
+        cx.indentation.level += 1;
+        for i in 0..self.0.len() {
+            if i != 0 {
+                cx_writeln!(cx, "");
+            }
+            cx_writeln!(cx, "{}{}", cx.indentation, self.0[i]);
+        }
+        cx.indentation.level -= 1;
+        cx_writeln!(cx, "{}</style>", cx.indentation);
+    }
+}
+
+impl Renderable for &str {
+    fn render(&self, cx: &mut Context) {
+        write!(cx.output, "{}{self}", cx.indentation).unwrap();
+    }
+}
+impl Renderable for &mut str {
+    fn render(&self, cx: &mut Context) {
+        write!(cx.output, "{}{self}", cx.indentation).unwrap();
+    }
+}
+impl Component for &str {}
+impl Component for &mut str {}
 
 #[derive(Clone)]
 pub struct Body<'re> {
@@ -136,7 +175,7 @@ pub struct HtmlElementLazy<T> {
     pub pre_render: PreRenderFn<T>,
 }
 
-type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), String>;
+type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), std::string::String>;
 #[derive(Clone)]
 pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
@@ -172,7 +211,7 @@ pub trait SimpleElement {
         'arena: 're,
         Self: 're;
 
-    fn pre_render_checks(&self, _cx: &mut Context) -> Result<(), String> {
+    fn pre_render_checks(&self, _cx: &mut Context) -> Result<(), std::string::String> {
         Ok(())
     }
 }
@@ -258,12 +297,12 @@ impl SimpleElement for Div<'_> {
         }
     }
 
-    fn pre_render_checks(&self, cx: &mut Context) -> Result<(), String> {
+    fn pre_render_checks(&self, cx: &mut Context) -> Result<(), std::string::String> {
         if let Some(id) = self.id {
             if cx.ids.contains(id) {
                 return Err(format!("'{id}' id duplicate"));
             }
-            cx.ids.insert(id.into());
+            cx.ids.insert(cx.arena.alloc_str(id));
         }
         Ok(())
     }
@@ -272,7 +311,7 @@ impl SimpleElement for Div<'_> {
 pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
     Html {
         head: Head {
-            children: Vec::new_in(arena),
+            styles: Vec::new_in(arena),
         },
         body: Body {
             children: Vec::new_in(arena),

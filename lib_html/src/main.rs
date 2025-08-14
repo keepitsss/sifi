@@ -21,8 +21,10 @@ fn main() {
             .class("some-class")
             .class("other")
             .classes(["some1", "some2"])
-            .child(div(arena).id("id1")),
+            .child(div(arena).id("id1").child("hi\n")),
     );
+    html.head.add_style("div { color: red }");
+    html.head.add_style("div { color: red }");
 
     html.render(&mut cx);
 
