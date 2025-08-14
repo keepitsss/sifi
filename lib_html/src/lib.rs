@@ -35,7 +35,7 @@ impl Renderable for AnyElement<'_> {
         self.0.render(cx);
     }
 }
-pub trait IntoElement: Renderable {
+pub trait Component: Renderable {
     fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
     where
         'arena: 're,
@@ -51,19 +51,19 @@ pub struct Html<'re> {
     pub body: Body<'re>,
 }
 impl<'re> Html<'re> {
-    pub fn add_to_body<'arena: 're>(&mut self, body: impl IntoElement + 're) {
+    pub fn add_to_body<'arena: 're>(&mut self, body: impl Component + 're) {
         self.body
             .children
             .push(body.into_any_element(self.body.children.bump()));
     }
 }
 impl SimpleElement for Html<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
     {
-        HtmlElement {
+        GenericHtmlElement {
             name: "html",
             attributes: &[],
             children: bumpalo::vec![in arena; arena.alloc(self.head.clone()) as &dyn Renderable, arena.alloc(self.body.clone())]
@@ -76,12 +76,12 @@ pub struct Head<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
 }
 impl SimpleElement for Head<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
     {
-        HtmlElement {
+        GenericHtmlElement {
             name: "head",
             attributes: &[],
             children: strip_anyelement(arena, &self.children),
@@ -94,12 +94,12 @@ pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
 }
 impl SimpleElement for Body<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
     {
-        HtmlElement {
+        GenericHtmlElement {
             name: "body",
             attributes: &[],
             children: strip_anyelement(arena, &self.children),
@@ -138,12 +138,12 @@ pub struct HtmlElementLazy<T> {
 
 type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), String>;
 #[derive(Clone)]
-pub struct HtmlElement<'re> {
+pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
     pub attributes: &'re [HtmlAttribute<'re>],
     pub children: &'re [&'re dyn Renderable],
 }
-impl Renderable for HtmlElement<'_> {
+impl Renderable for GenericHtmlElement<'_> {
     fn render(&self, cx: &mut Context) {
         cx_write!(cx, "{}<{}", cx.indentation, self.name);
         for attribute in self.attributes {
@@ -167,7 +167,7 @@ impl Renderable for HtmlElement<'_> {
 
 pub trait SimpleElement {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're;
@@ -200,9 +200,9 @@ pub struct Div<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
 }
-impl IntoElement for Div<'_> {}
+impl Component for Div<'_> {}
 impl<'re> Div<'re> {
-    pub fn child(mut self, child: impl IntoElement + 're) -> Self {
+    pub fn child(mut self, child: impl Component + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
@@ -232,7 +232,7 @@ impl<'re> Div<'re> {
     }
 }
 impl SimpleElement for Div<'_> {
-    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -251,7 +251,7 @@ impl SimpleElement for Div<'_> {
             })
         }
 
-        HtmlElement {
+        GenericHtmlElement {
             name: arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
             children: strip_anyelement(arena, &self.children),
