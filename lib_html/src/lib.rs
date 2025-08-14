@@ -77,7 +77,7 @@ pub struct Head<'re> {
 }
 impl<'re> Head<'re> {
     pub fn add_style<'arena: 're>(&mut self, style: &str) {
-        self.styles.push(self.styles.bump().alloc_str(style));
+        self.styles.push(self.styles.bump().alloc_str(style.trim()));
     }
 }
 impl SimpleElement for Head<'_> {
@@ -104,11 +104,10 @@ impl Renderable for Style<'_> {
         assert!(!self.0.is_empty());
         cx_writeln!(cx, "{}<style>", cx.indentation);
         cx.indentation.level += 1;
+        cx_writeln!(cx, "");
         for i in 0..self.0.len() {
-            if i != 0 {
-                cx_writeln!(cx, "");
-            }
-            cx_writeln!(cx, "{}{}", cx.indentation, self.0[i]);
+            cx_writeln!(cx, "{}{}", /* cx.indentation */ "", self.0[i]);
+            cx_writeln!(cx, "");
         }
         cx.indentation.level -= 1;
         cx_writeln!(cx, "{}</style>", cx.indentation);
