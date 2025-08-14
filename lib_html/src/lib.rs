@@ -30,29 +30,16 @@ pub struct Context<'re> {
 
 #[derive(Clone, Copy)]
 pub struct AnyElement<'re>(pub &'re dyn Renderable);
-
-pub trait IntoElement {
-    fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
-    where
-        'arena: 're,
-        Self: 're;
-}
-
-//
-
 impl Renderable for AnyElement<'_> {
     fn render(&self, cx: &mut Context) {
         self.0.render(cx);
     }
 }
-impl<T> IntoElement for T
-where
-    T: Renderable,
-{
+pub trait IntoElement: Renderable {
     fn into_any_element<'re, 'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
     where
         'arena: 're,
-        T: 're,
+        Self: 're + Sized,
     {
         let value = arena.alloc(self);
         AnyElement(value)
@@ -79,7 +66,7 @@ impl SimpleElement for Html<'_> {
         HtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; self.head.clone().into_any_element(arena), self.body.clone().into_any_element(arena)]
+            children: bumpalo::vec![in arena; arena.alloc(self.head.clone()) as &dyn Renderable, arena.alloc(self.body.clone())]
                 .into_bump_slice(),
         }
     }
@@ -89,7 +76,7 @@ pub struct Head<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
 }
 impl SimpleElement for Head<'_> {
-    fn into_html_element<'re, 'arena>(&self, _arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -97,16 +84,17 @@ impl SimpleElement for Head<'_> {
         HtmlElement {
             name: "head",
             attributes: &[],
-            children: self.children.clone().into_bump_slice(),
+            children: strip_anyelement(arena, &self.children),
         }
     }
 }
+
 #[derive(Clone)]
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
 }
 impl SimpleElement for Body<'_> {
-    fn into_html_element<'re, 'arena>(&self, _arena: &'arena Bump) -> HtmlElement<'re>
+    fn into_html_element<'re, 'arena>(&self, arena: &'arena Bump) -> HtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -114,7 +102,7 @@ impl SimpleElement for Body<'_> {
         HtmlElement {
             name: "body",
             attributes: &[],
-            children: self.children.clone().into_bump_slice(),
+            children: strip_anyelement(arena, &self.children),
         }
     }
 }
@@ -153,7 +141,7 @@ type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), String>;
 pub struct HtmlElement<'re> {
     pub name: &'re str,
     pub attributes: &'re [HtmlAttribute<'re>],
-    pub children: &'re [AnyElement<'re>],
+    pub children: &'re [&'re dyn Renderable],
 }
 impl Renderable for HtmlElement<'_> {
     fn render(&self, cx: &mut Context) {
@@ -188,6 +176,14 @@ pub trait SimpleElement {
         Ok(())
     }
 }
+fn strip_anyelement<'re, 'arena: 're>(
+    arena: &'arena Bump,
+    children: &Vec<'re, AnyElement<'re>>,
+) -> &'re [&'re dyn Renderable] {
+    let mut children_clone = Vec::new_in(arena);
+    children_clone.extend(children.into_iter().map(|x| x.0));
+    children_clone.into_bump_slice()
+}
 impl<T> Renderable for T
 where
     T: SimpleElement,
@@ -204,6 +200,7 @@ pub struct Div<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
 }
+impl IntoElement for Div<'_> {}
 impl<'re> Div<'re> {
     pub fn child(mut self, child: impl IntoElement + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
@@ -257,7 +254,7 @@ impl SimpleElement for Div<'_> {
         HtmlElement {
             name: arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
-            children: self.children.clone().into_bump_slice(),
+            children: strip_anyelement(arena, &self.children),
         }
     }
 
