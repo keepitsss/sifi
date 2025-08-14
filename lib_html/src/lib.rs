@@ -139,12 +139,12 @@ impl<'re> Renderable<'re> for Style<'re> {
 
 impl<'re> Renderable<'re> for &'re str {
     fn render(&self, cx: &mut Context) {
-        write!(cx.output, "{}{self}", cx.indentation).unwrap();
+        writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
 impl<'re> Renderable<'re> for &'re mut str {
     fn render(&self, cx: &mut Context) {
-        write!(cx.output, "{}{self}", cx.indentation).unwrap();
+        writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
 impl<'re> Component<'re> for &'re str {}
