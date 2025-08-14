@@ -212,12 +212,14 @@ impl<'re> Div<'re> {
     pub fn id(mut self, id: &str) -> Self {
         assert!(self.id.is_none());
         assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!id.is_empty());
         self.id = Some(self.arena.alloc_str(id));
         self
     }
     pub fn class(mut self, class: &str) -> Self {
         assert!(!self.classes.contains(&class));
         assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!class.is_empty());
         self.classes.push(self.arena.alloc_str(class));
         self
     }
