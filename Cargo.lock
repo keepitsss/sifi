@@ -35,18 +35,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "html-components"
-version = "0.1.0"
-dependencies = [
- "bumpalo",
-]
-
-[[package]]
 name = "lib_cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "derive_more",
+]
+
+[[package]]
+name = "lib_html"
+version = "0.1.0"
+dependencies = [
+ "bumpalo",
 ]
 
 [[package]]
