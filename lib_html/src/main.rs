@@ -24,7 +24,6 @@ fn main() {
             .child(div(arena).id("id1").child("hi\n")),
     );
     html.head.add_style("div { color: red }");
-    html.head.add_style("div { color: red }");
 
     html.render(&mut cx);
 
@@ -33,4 +32,5 @@ fn main() {
     drop(allocator);
 
     println!("{output}");
+    std::fs::write("index.html", output).unwrap();
 }
