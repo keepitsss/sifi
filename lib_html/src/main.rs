@@ -22,7 +22,7 @@ fn main() {
             .child(p(arena).child(
                 "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
             ))
-            .child(p(arena))
+            .child(p(arena).child(a(arena).href("https://www.iana.org/domains/example").child("More information...")))
     );
     cx.styles.extend([
         "

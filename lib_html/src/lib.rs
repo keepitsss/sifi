@@ -461,7 +461,6 @@ impl<'re> SimpleElement<'re> for Div<'re> {
                 value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
             })
         }
-
         GenericHtmlElement {
             name: arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
@@ -536,7 +535,6 @@ impl<'re> SimpleElement<'re> for Heading1<'re> {
                 value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
             })
         }
-
         GenericHtmlElement {
             name: arena.alloc("h1"),
             attributes: attrs.into_bump_slice(),
@@ -610,9 +608,96 @@ impl<'re> SimpleElement<'re> for Paragraph<'re> {
                 value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
             })
         }
-
         GenericHtmlElement {
             name: arena.alloc("p"),
+            attributes: attrs.into_bump_slice(),
+            children: strip_anyelement(arena, &self.children),
+            late_children: &[],
+        }
+    }
+}
+
+pub struct Link<'re> {
+    pub classes: Vec<'re, &'re str>,
+    pub id: Option<&'re str>,
+    pub children: Vec<'re, AnyElement<'re>>,
+    // TODO: store Url
+    pub href: Option<&'re str>,
+    arena: &'re Bump,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
+}
+impl BuiltinHtmlElement for Link<'_> {
+    fn class(mut self, class: &str) -> Self {
+        assert!(!self.classes.contains(&class));
+        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!class.is_empty());
+        self.classes.push(self.arena.alloc_str(class));
+        self
+    }
+    fn id(mut self, id: &str) -> Self {
+        assert!(self.id.is_none());
+        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!id.is_empty());
+        self.id = Some(self.arena.alloc_str(id));
+        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
+            let id = this.id.unwrap();
+            if cx.ids.contains(id) {
+                panic!("'{id}' id duplicate");
+            }
+            cx.ids.insert(cx.arena.alloc_str(id));
+        })
+    }
+}
+derive_pre_render_hooks!('re, Link<'re>);
+impl<'re> FlowContent<'re> for Link<'re> {}
+impl<'re> PhrasingContent<'re> for Link<'re> {}
+impl<'re> Link<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Link {
+            classes: Vec::new_in(arena),
+            id: None,
+            children: Vec::new_in(arena),
+            href: None,
+            arena,
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
+    pub fn child(mut self, child: impl FlowContent<'re> + 're) -> Self {
+        self.children.push(child.into_any_element(self.arena));
+        self
+    }
+    pub fn href(mut self, url: &str) -> Self {
+        assert!(self.href.is_none());
+        self.href = Some(self.arena.alloc_str(url.trim()));
+        self
+    }
+}
+impl<'re> SimpleElement<'re> for Link<'re> {
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    where
+        'arena: 're,
+    {
+        let mut attrs = Vec::new_in(arena);
+        if let Some(id) = self.id {
+            attrs.push(HtmlAttribute {
+                name: "id",
+                value: HtmlValue::String(id),
+            });
+        }
+        if !self.classes.is_empty() {
+            attrs.push(HtmlAttribute {
+                name: "class",
+                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+            })
+        }
+        if let Some(href) = self.href {
+            attrs.push(HtmlAttribute {
+                name: "href",
+                value: HtmlValue::String(href),
+            });
+        }
+        GenericHtmlElement {
+            name: arena.alloc("a"),
             attributes: attrs.into_bump_slice(),
             children: strip_anyelement(arena, &self.children),
             late_children: &[],
@@ -632,4 +717,7 @@ pub fn h1(arena: &Bump) -> Heading1<'_> {
 }
 pub fn p(arena: &Bump) -> Paragraph<'_> {
     Paragraph::new_in(arena)
+}
+pub fn a(arena: &Bump) -> Link<'_> {
+    Link::new_in(arena)
 }
