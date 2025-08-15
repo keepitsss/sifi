@@ -69,6 +69,21 @@ pub trait Component<'re>: Renderable<'re> {
     }
 }
 
+pub trait BuiltinHtmlElement: Sized {
+    fn class(self, class: &str) -> Self;
+    fn classes<'a>(mut self, classes: impl IntoIterator<Item = &'a str>) -> Self {
+        let mut count = 0;
+        for class in classes.into_iter() {
+            self = self.class(class);
+            count += 1;
+        }
+        assert_ne!(count, 0, "empty classes provided");
+        assert_ne!(count, 1, "use 'class' method to provide one class");
+        self
+    }
+    fn id(self, id: &str) -> Self;
+}
+
 pub struct Html<'re> {
     pub head: &'re RefCell<Head<'re>>,
     pub body: &'re RefCell<Body<'re>>,
@@ -367,6 +382,28 @@ pub struct Div<'re> {
     arena: &'re Bump,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
+impl BuiltinHtmlElement for Div<'_> {
+    fn class(mut self, class: &str) -> Self {
+        assert!(!self.classes.contains(&class));
+        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!class.is_empty());
+        self.classes.push(self.arena.alloc_str(class));
+        self
+    }
+    fn id(mut self, id: &str) -> Self {
+        assert!(self.id.is_none());
+        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!id.is_empty());
+        self.id = Some(self.arena.alloc_str(id));
+        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
+            let id = this.id.unwrap();
+            if cx.ids.contains(id) {
+                panic!("'{id}' id duplicate");
+            }
+            cx.ids.insert(cx.arena.alloc_str(id));
+        })
+    }
+}
 derive_pre_render_hooks!('re, Div<'re>);
 impl<'re> Component<'re> for Div<'re> {}
 impl<'re> Div<'re> {
@@ -381,36 +418,6 @@ impl<'re> Div<'re> {
     }
     pub fn child(mut self, child: impl Component<'re> + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
-        self
-    }
-    pub fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
-    pub fn class(mut self, class: &str) -> Self {
-        assert!(!self.classes.contains(&class));
-        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!class.is_empty());
-        self.classes.push(self.arena.alloc_str(class));
-        self
-    }
-    pub fn classes<'a>(mut self, classes: impl IntoIterator<Item = &'a str>) -> Self {
-        let mut count = 0;
-        for class in classes.into_iter() {
-            self = self.class(class);
-            count += 1;
-        }
-        assert_ne!(count, 0, "empty classes provided");
-        assert_ne!(count, 1, "use 'class' method to provide one class");
         self
     }
 }
