@@ -247,14 +247,14 @@ impl<'re> SimpleElement<'re> for Body<'re> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum HtmlValue<'re> {
     Number(u32),
     String(&'re str),
     Bool(bool),
     Empty,
 }
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct HtmlAttribute<'re> {
     name: &'re str,
     value: HtmlValue<'re>,
@@ -633,6 +633,8 @@ pub struct Link<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     // TODO: store Url
     pub href: Option<&'re str>,
+    pub download: bool,
+    pub ping: Vec<'re, &'re str>,
     arena: &'re Bump,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
@@ -668,6 +670,8 @@ impl<'re> Link<'re> {
             id: None,
             children: Vec::new_in(arena),
             href: None,
+            download: false,
+            ping: Vec::new_in(arena),
             arena,
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
@@ -677,8 +681,22 @@ impl<'re> Link<'re> {
         self
     }
     pub fn href(mut self, url: &str) -> Self {
+        let url = url.trim();
         assert!(self.href.is_none());
-        self.href = Some(self.arena.alloc_str(url.trim()));
+        assert!(!url.contains(" "));
+        self.href = Some(self.arena.alloc_str(url));
+        self
+    }
+    pub fn download(mut self) -> Self {
+        assert!(!self.download);
+        self.download = true;
+        self
+    }
+    pub fn ping(mut self, url: &str) -> Self {
+        let url = url.trim();
+        assert!(!url.contains(" "));
+        assert!(!self.ping.contains(&url));
+        self.ping.push(self.arena.alloc_str(url));
         self
     }
 }
@@ -705,6 +723,24 @@ impl<'re> SimpleElement<'re> for Link<'re> {
                 name: "href",
                 value: HtmlValue::String(href),
             });
+        }
+        if self.download {
+            attrs.push(HtmlAttribute {
+                name: "download",
+                value: HtmlValue::Empty,
+            })
+        }
+        if !self.ping.is_empty() {
+            let mut value = bumpalo::collections::String::new_in(arena);
+            value.push_str(self.ping[0]);
+            for url in self.ping.iter().skip(1) {
+                value.push(' ');
+                value.push_str(url);
+            }
+            attrs.push(HtmlAttribute {
+                name: "ping",
+                value: HtmlValue::String(value.into_bump_str()),
+            })
         }
         GenericHtmlElement {
             name: arena.alloc("a"),
