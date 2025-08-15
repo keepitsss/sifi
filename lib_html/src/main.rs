@@ -19,7 +19,10 @@ fn main() {
     html.add_to_body(
         div(arena)
             .child(h1(arena).child("Example Domain"))
-            .child(div(arena).id("id1").child("hi")),
+            .child(p(arena).child(
+                "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
+            ))
+            .child(p(arena))
     );
     cx.styles.extend([
         "
