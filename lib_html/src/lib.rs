@@ -59,16 +59,32 @@ impl<'re> Renderable<'re> for AnyElement<'re> {
         self.0.render(cx);
     }
 }
-pub trait Component<'re>: Renderable<'re> {
-    fn into_any_element<'arena>(self, arena: &'arena Bump) -> AnyElement<'re>
-    where
-        'arena: 're,
-        Self: 're + Sized,
-    {
+pub trait Component<'re>: Renderable<'re> + Sized + 're {
+    fn into_any_element(self, arena: &'re Bump) -> AnyElement<'re>;
+}
+impl<'re, T> Component<'re> for T
+where
+    T: Renderable<'re> + 're,
+{
+    fn into_any_element(self, arena: &'re Bump) -> AnyElement<'re> {
         let value = arena.alloc(self);
         AnyElement(value)
     }
 }
+/// https://html.spec.whatwg.org/#flow-content-2
+pub trait FlowContent<'re>: Component<'re> {}
+pub trait SectioningContent<'re>: FlowContent<'re> {}
+pub trait HeadingContent<'re>: FlowContent<'re> {}
+pub trait PhrasingContent<'re>: FlowContent<'re> {}
+pub trait EmbeddedContent<'re>: PhrasingContent<'re> {}
+pub trait InteractiveContent<'re>: FlowContent<'re> {}
+pub trait MetadataContent<'re>: Component<'re> {}
+/// # Safety
+/// see docs, TLDR: should have content
+pub unsafe trait PalpableConent<'re>: FlowContent<'re> {}
+pub trait SelectInnerConent<'re>: Component<'re> {}
+pub trait OptgroupInnerConent<'re>: Component<'re> {}
+pub trait OptionInnerConent<'re>: Component<'re> {}
 
 pub trait BuiltinHtmlElement: Sized {
     fn class(self, class: &str) -> Self;
@@ -100,7 +116,7 @@ impl<'re> Html<'re> {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
-    pub fn add_to_body(&mut self, body: impl Component<'re> + 're) {
+    pub fn add_to_body(&mut self, body: impl FlowContent<'re> + 're) {
         let children = &mut self.body.borrow_mut().children;
         children.push(body.into_any_element(children.bump()));
     }
@@ -187,8 +203,6 @@ impl<'re> Renderable<'re> for &'re mut str {
         writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
-impl<'re> Component<'re> for &'re str {}
-impl<'re> Component<'re> for &'re mut str {}
 
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
@@ -407,7 +421,7 @@ impl BuiltinHtmlElement for Div<'_> {
     }
 }
 derive_pre_render_hooks!('re, Div<'re>);
-impl<'re> Component<'re> for Div<'re> {}
+impl<'re> FlowContent<'re> for Div<'re> {}
 impl<'re> Div<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Div {
