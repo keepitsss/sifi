@@ -2,7 +2,7 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fmt::Write,
 };
 
@@ -49,6 +49,7 @@ pub struct Context<'re> {
     pub output: std::string::String,
     pub arena: &'re Bump,
     pub ids: HashSet<&'re str>,
+    pub tailwind_styles: HashMap<&'re str, &'re str>,
 }
 
 #[derive(Clone, Copy)]
@@ -83,6 +84,21 @@ pub trait BuiltinHtmlElement: Sized {
     }
     fn id(self, id: &str) -> Self;
 }
+pub trait TailwindExt<'re>: BuiltinHtmlElement + PreRenderHooks<'re> {
+    fn font_sans(self) -> Self {
+        self.class("font-sans").with_pre_render_hook(|_this, cx| {
+            cx.tailwind_styles.insert(
+                "font-sans",
+                "
+.font-sans {
+    font-family: sans-serif;
+}
+                ",
+            );
+        })
+    }
+}
+impl<'re, T> TailwindExt<'re> for T where T: BuiltinHtmlElement + PreRenderHooks<'re> {}
 
 pub struct Html<'re> {
     pub head: &'re RefCell<Head<'re>>,
@@ -136,7 +152,7 @@ impl<'re> Head<'re> {
         }
     }
     pub fn add_style<'arena: 're>(&mut self, style: &str) {
-        self.styles.push(self.styles.bump().alloc_str(style.trim()));
+        self.styles.push(self.styles.bump().alloc_str(style));
     }
 }
 derive_pre_render_hooks!('re, Head<'re>);
@@ -147,9 +163,7 @@ impl<'re> SimpleElement<'re> for Head<'re> {
         Self: 're,
     {
         let mut children = Vec::new_in(arena);
-        if !self.styles.is_empty() {
-            children.push(arena.alloc(Style(self.styles.clone())) as &dyn Renderable);
-        }
+        children.push(arena.alloc(Style(self.styles.clone())) as &dyn Renderable);
         GenericHtmlElement {
             name: "head",
             attributes: &[],
@@ -162,12 +176,14 @@ impl<'re> SimpleElement<'re> for Head<'re> {
 struct Style<'re>(Vec<'re, &'re str>);
 impl<'re> Renderable<'re> for Style<'re> {
     fn render(&self, cx: &mut Context) {
-        assert!(!self.0.is_empty());
+        let mut styles = self.0.clone();
+        styles.extend(cx.tailwind_styles.values());
+
         cx_writeln!(cx, "{}<style>", cx.indentation);
         cx.indentation.level += 1;
         cx_writeln!(cx, "");
-        for i in 0..self.0.len() {
-            cx_writeln!(cx, "{}{}", /* cx.indentation */ "", self.0[i]);
+        for i in 0..styles.len() {
+            cx_writeln!(cx, "{}{}", /* cx.indentation */ "", styles[i].trim());
             cx_writeln!(cx, "");
         }
         cx.indentation.level -= 1;

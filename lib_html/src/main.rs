@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use bumpalo::Bump;
 use lib_html::*;
@@ -11,6 +11,7 @@ fn main() {
         output: String::new(),
         arena: &allocator,
         ids: HashSet::new(),
+        tailwind_styles: HashMap::new(),
     };
     let arena = cx.arena;
 
@@ -20,6 +21,7 @@ fn main() {
             .id("id2")
             .class("some-class")
             .class("other")
+            .font_sans()
             .classes(["some1", "some2"])
             .child(div(arena).id("id1").child("hi")),
     );
