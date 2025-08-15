@@ -1,6 +1,10 @@
 //! 're = 'rendering
 
-use std::{cell::Cell, collections::HashSet, fmt::Write};
+use std::{
+    cell::{Cell, RefCell},
+    collections::HashSet,
+    fmt::Write,
+};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -47,8 +51,8 @@ pub trait Component<'re>: Renderable<'re> {
 }
 
 pub struct Html<'re> {
-    pub head: Head<'re>,
-    pub body: Body<'re>,
+    pub head: &'re RefCell<Head<'re>>,
+    pub body: &'re RefCell<Body<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl<'re> PreRenderHooks<'re> for Html<'re> {
@@ -65,31 +69,35 @@ impl<'re> PreRenderHooks<'re> for Html<'re> {
 impl<'re> Html<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Html {
-            head: Head::new_in(arena),
-            body: Body::new_in(arena),
+            head: arena.alloc(RefCell::new(Head::new_in(arena))),
+            body: arena.alloc(RefCell::new(Body::new_in(arena))),
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
     pub fn add_to_body(&mut self, body: impl Component<'re> + 're) {
-        self.body
-            .children
-            .push(body.into_any_element(self.body.children.bump()));
+        let children = &mut self.body.borrow_mut().children;
+        children.push(body.into_any_element(children.bump()));
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
-    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
-        Self: 're,
     {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; arena.alloc(self.body.into_html_element(arena)) as &dyn Renderable]
-                .into_bump_slice(),
-            late_children: bumpalo::vec![in arena; arena.alloc(self.head.into_html_element(arena)) as &dyn Renderable]
-                            .into_bump_slice()
+            children: bumpalo::vec![in arena; self.body as &dyn Renderable].into_bump_slice(),
+            late_children: bumpalo::vec![in arena; self.head as &dyn Renderable].into_bump_slice(),
         }
+    }
+}
+impl<'re, T> Renderable<'re> for RefCell<T>
+where
+    T: Renderable<'re>,
+{
+    fn render(&self, cx: &mut Context<'re>) {
+        (*self.borrow()).render(cx);
     }
 }
 pub struct Head<'re> {
@@ -119,7 +127,7 @@ impl<'re> PreRenderHooks<'re> for Head<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Head<'re> {
-    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
         Self: 're,
@@ -190,10 +198,9 @@ impl<'re> PreRenderHooks<'re> for Body<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Body<'re> {
-    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
-        Self: 're,
     {
         GenericHtmlElement {
             name: "body",
@@ -269,12 +276,13 @@ impl<'re> Renderable<'re> for GenericHtmlElement<'re> {
     }
 }
 
-pub trait SimpleElement<'re>: PreRenderHooks<'re, This = Self> {
+pub trait SimpleElement<'re>: PreRenderHooks<'re> {
     #[allow(clippy::wrong_self_convention)]
-    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    /// # Safety
+    /// You should call pre_render_hooks before rendering
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
-        'arena: 're,
-        Self: 're;
+        'arena: 're;
 }
 fn strip_anyelement<'re, 'arena: 're>(
     arena: &'arena Bump,
@@ -286,13 +294,16 @@ fn strip_anyelement<'re, 'arena: 're>(
 }
 impl<'re, T> Renderable<'re> for T
 where
-    T: SimpleElement<'re>,
+    T: SimpleElement<'re, This = Self>,
 {
     fn render(&self, cx: &mut Context<'re>) {
         if let Some(hook) = self.take_pre_render_hook() {
             hook(self, cx);
         }
-        self.into_html_element(cx.arena).render(cx);
+        // SAFETY: hook called
+        unsafe {
+            self.into_html_element(cx.arena).render(cx);
+        }
     }
 }
 
@@ -308,10 +319,11 @@ where
 
     fn take_pre_render_hook(&self) -> Option<Hook<'re, Self::This>>;
 
-    fn with_pre_render_hook(
-        self,
-        mut new_hook: impl FnMut(&Self::This, &mut Context) + 're,
-    ) -> Self {
+    fn with_pre_render_hook(self, new_hook: impl FnMut(&Self::This, &mut Context) + 're) -> Self {
+        self.add_pre_render_hook(new_hook);
+        self
+    }
+    fn add_pre_render_hook(&self, mut new_hook: impl FnMut(&Self::This, &mut Context) + 're) {
         match self.take_pre_render_hook() {
             Some(prev_hook) => {
                 // SAFETY: hook is taken out
@@ -329,7 +341,6 @@ where
                 }
             }
         }
-        self
     }
 }
 
@@ -425,10 +436,9 @@ impl<'re> Div<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Div<'re> {
-    fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
         'arena: 're,
-        Self: 're,
     {
         let mut attrs = Vec::new_in(arena);
         if let Some(id) = self.id {

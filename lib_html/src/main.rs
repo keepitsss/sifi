@@ -23,51 +23,51 @@ fn main() {
             .classes(["some1", "some2"])
             .child(div(arena).id("id1").child("hi")),
     );
-    html.head.add_style(
-        "
-body {
-    background-color: #f0f0f2;
-    margin: 0;
-    padding: 0;
-    font-family: sans-serif;
-}
-        ",
-    );
-    html.head.add_style(
-        "
-div {
-    width: 600px;
-    margin: 5em auto;
-    padding: 2em;
-    background-color: #fdfdff;
-    border-radius: 0.5em;
-    box-shadow: 2px 3px 7px 2px rgba(0,0,0,0.02);
-}
-        ",
-    );
-    html.head.add_style(
-        "
-a:link, a:visited {
-    color: #38488f;
-    text-decoration: none;
-}
-        ",
-    );
-    html.head.add_style(
-        "
-@media (max-width: 700px) {
-    div {
-        margin: 0 auto;
-        width: auto;
-    }
-}
-        ",
-    );
+    //     html.head.add_style(
+    //         "
+    // body {
+    //     background-color: #f0f0f2;
+    //     margin: 0;
+    //     padding: 0;
+    //     font-family: sans-serif;
+    // }
+    //         ",
+    //     );
+    //     html.head.add_style(
+    //         "
+    // div {
+    //     width: 600px;
+    //     margin: 5em auto;
+    //     padding: 2em;
+    //     background-color: #fdfdff;
+    //     border-radius: 0.5em;
+    //     box-shadow: 2px 3px 7px 2px rgba(0,0,0,0.02);
+    // }
+    //         ",
+    //     );
+    //     html.head.add_style(
+    //         "
+    // a:link, a:visited {
+    //     color: #38488f;
+    //     text-decoration: none;
+    // }
+    //         ",
+    //     );
+    //     html.head.add_style(
+    //         "
+    // @media (max-width: 700px) {
+    //     div {
+    //         margin: 0 auto;
+    //         width: auto;
+    //     }
+    // }
+    //         ",
+    //     );
 
     html.render(&mut cx);
 
     let output = cx.output;
-    drop(html);
+    // drop(html);
     drop(allocator);
 
     println!("{output}");
