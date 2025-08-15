@@ -63,6 +63,13 @@ impl<'re> PreRenderHooks<'re> for Html<'re> {
     }
 }
 impl<'re> Html<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Html {
+            head: Head::new_in(arena),
+            body: Body::new_in(arena),
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
     pub fn add_to_body(&mut self, body: impl Component<'re> + 're) {
         self.body
             .children
@@ -90,6 +97,12 @@ pub struct Head<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl<'re> Head<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Head {
+            styles: Vec::new_in(arena),
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
     pub fn add_style<'arena: 're>(&mut self, style: &str) {
         self.styles.push(self.styles.bump().alloc_str(style.trim()));
     }
@@ -157,6 +170,14 @@ pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
+impl<'re> Body<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Body {
+            children: Vec::new_in(arena),
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
+}
 impl<'re> PreRenderHooks<'re> for Body<'re> {
     type This = Self;
     unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
@@ -207,12 +228,6 @@ impl<'re> Renderable<'re> for HtmlAttribute<'re> {
     }
 }
 
-pub struct HtmlElementLazy<T> {
-    pub inner: T,
-    pub pre_render: PreRenderFn<T>,
-}
-
-type PreRenderFn<T> = fn(&T, &mut Context) -> Result<(), std::string::String>;
 #[derive(Clone)]
 pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
@@ -365,6 +380,15 @@ impl<'re> PreRenderHooks<'re> for Div<'re> {
 }
 impl<'re> Component<'re> for Div<'re> {}
 impl<'re> Div<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Div {
+            classes: Vec::new_in(arena),
+            id: None,
+            children: Vec::new_in(arena),
+            arena,
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
     pub fn child(mut self, child: impl Component<'re> + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -429,26 +453,10 @@ impl<'re> SimpleElement<'re> for Div<'re> {
     }
 }
 
-pub fn html<'re, 'arena: 're>(arena: &'arena Bump) -> Html<'re> {
-    Html {
-        head: Head {
-            styles: Vec::new_in(arena),
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        },
-        body: Body {
-            children: Vec::new_in(arena),
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        },
-        pre_render_hook: PreRenderHookStorage::new_in(arena),
-    }
+pub fn html(arena: &Bump) -> Html<'_> {
+    Html::new_in(arena)
 }
 
-pub fn div<'re, 'arena: 're>(arena: &'arena Bump) -> Div<'re> {
-    Div {
-        classes: Vec::new_in(arena),
-        id: None,
-        children: Vec::new_in(arena),
-        arena,
-        pre_render_hook: PreRenderHookStorage::new_in(arena),
-    }
+pub fn div(arena: &Bump) -> Div<'_> {
+    Div::new_in(arena)
 }
