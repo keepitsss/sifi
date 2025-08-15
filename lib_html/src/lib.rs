@@ -2,7 +2,7 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     fmt::Write,
 };
 
@@ -49,7 +49,7 @@ pub struct Context<'re> {
     pub output: std::string::String,
     pub arena: &'re Bump,
     pub ids: HashSet<&'re str>,
-    pub tailwind_styles: HashMap<&'re str, &'re str>,
+    pub styles: HashSet<&'re str>,
 }
 
 #[derive(Clone, Copy)]
@@ -87,8 +87,7 @@ pub trait BuiltinHtmlElement: Sized {
 pub trait TailwindExt<'re>: BuiltinHtmlElement + PreRenderHooks<'re> {
     fn font_sans(self) -> Self {
         self.class("font-sans").with_pre_render_hook(|_this, cx| {
-            cx.tailwind_styles.insert(
-                "font-sans",
+            cx.styles.insert(
                 "
 .font-sans {
     font-family: sans-serif;
@@ -101,8 +100,8 @@ pub trait TailwindExt<'re>: BuiltinHtmlElement + PreRenderHooks<'re> {
 impl<'re, T> TailwindExt<'re> for T where T: BuiltinHtmlElement + PreRenderHooks<'re> {}
 
 pub struct Html<'re> {
-    pub head: &'re RefCell<Head<'re>>,
-    pub body: &'re RefCell<Body<'re>>,
+    head: &'re RefCell<Head<'re>>,
+    body: &'re RefCell<Body<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 derive_pre_render_hooks!('re, Html<'re>);
@@ -141,18 +140,13 @@ where
     }
 }
 pub struct Head<'re> {
-    pub styles: Vec<'re, &'re str>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl<'re> Head<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Head {
-            styles: Vec::new_in(arena),
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
-    }
-    pub fn add_style<'arena: 're>(&mut self, style: &str) {
-        self.styles.push(self.styles.bump().alloc_str(style));
     }
 }
 derive_pre_render_hooks!('re, Head<'re>);
@@ -163,7 +157,7 @@ impl<'re> SimpleElement<'re> for Head<'re> {
         Self: 're,
     {
         let mut children = Vec::new_in(arena);
-        children.push(arena.alloc(Style(self.styles.clone())) as &dyn Renderable);
+        children.push(arena.alloc(GlobalStyles) as &dyn Renderable);
         GenericHtmlElement {
             name: "head",
             attributes: &[],
@@ -172,18 +166,23 @@ impl<'re> SimpleElement<'re> for Head<'re> {
         }
     }
 }
-#[derive(Clone)]
+
+struct GlobalStyles;
+impl Renderable<'_> for GlobalStyles {
+    fn render(&self, cx: &mut Context<'_>) {
+        let mut styles = Vec::new_in(cx.arena);
+        styles.extend(cx.styles.iter());
+        Style(styles).render(cx)
+    }
+}
 struct Style<'re>(Vec<'re, &'re str>);
 impl<'re> Renderable<'re> for Style<'re> {
     fn render(&self, cx: &mut Context) {
-        let mut styles = self.0.clone();
-        styles.extend(cx.tailwind_styles.values());
-
         cx_writeln!(cx, "{}<style>", cx.indentation);
         cx.indentation.level += 1;
         cx_writeln!(cx, "");
-        for i in 0..styles.len() {
-            cx_writeln!(cx, "{}{}", /* cx.indentation */ "", styles[i].trim());
+        for i in 0..self.0.len() {
+            cx_writeln!(cx, "{}{}", /* cx.indentation */ "", self.0[i].trim());
             cx_writeln!(cx, "");
         }
         cx.indentation.level -= 1;

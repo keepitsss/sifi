@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use bumpalo::Bump;
 use lib_html::*;
@@ -11,7 +11,7 @@ fn main() {
         output: String::new(),
         arena: &allocator,
         ids: HashSet::new(),
-        tailwind_styles: HashMap::new(),
+        styles: HashSet::new(),
     };
     let arena = cx.arena;
 
