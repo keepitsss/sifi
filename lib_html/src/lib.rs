@@ -78,8 +78,10 @@ impl<'re> SimpleElement<'re> for Html<'re> {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; arena.alloc(self.head.into_html_element(arena)) as &dyn Renderable, arena.alloc(self.body.into_html_element(arena))]
+            children: bumpalo::vec![in arena; arena.alloc(self.body.into_html_element(arena)) as &dyn Renderable]
                 .into_bump_slice(),
+            late_children: bumpalo::vec![in arena; arena.alloc(self.head.into_html_element(arena)) as &dyn Renderable]
+                            .into_bump_slice()
         }
     }
 }
@@ -117,6 +119,7 @@ impl<'re> SimpleElement<'re> for Head<'re> {
             name: "head",
             attributes: &[],
             children: children.into_bump_slice(),
+            late_children: &[],
         }
     }
 }
@@ -175,6 +178,7 @@ impl<'re> SimpleElement<'re> for Body<'re> {
             name: "body",
             attributes: &[],
             children: strip_anyelement(arena, &self.children),
+            late_children: &[],
         }
     }
 }
@@ -214,6 +218,8 @@ pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
     pub attributes: &'re [HtmlAttribute<'re>],
     pub children: &'re [&'re dyn Renderable<'re>],
+    /// It will render after children, but displayed before.
+    pub late_children: &'re [&'re dyn Renderable<'re>],
 }
 impl<'re> Renderable<'re> for GenericHtmlElement<'re> {
     fn render(&self, cx: &mut Context<'re>) {
@@ -227,11 +233,22 @@ impl<'re> Renderable<'re> for GenericHtmlElement<'re> {
         }
         cx_writeln!(cx, ">");
 
+        let mut output_buf = String::new();
+        std::mem::swap(&mut cx.output, &mut output_buf);
+
         for child in self.children {
             cx.indentation.level += 1;
             child.render(&mut *cx);
             cx.indentation.level -= 1;
         }
+        std::mem::swap(&mut cx.output, &mut output_buf);
+
+        for child in self.late_children {
+            cx.indentation.level += 1;
+            child.render(&mut *cx);
+            cx.indentation.level -= 1;
+        }
+        cx.output += &output_buf;
 
         cx_writeln!(cx, "{}</{}>", cx.indentation, self.name);
     }
@@ -407,6 +424,7 @@ impl<'re> SimpleElement<'re> for Div<'re> {
             name: arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
             children: strip_anyelement(arena, &self.children),
+            late_children: &[],
         }
     }
 }
