@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use bumpalo::Bump;
-use lib_html::*;
+use lib_html::{tailwind::TailwindExt, *};
 
 fn main() {
     let allocator = Bump::new();
