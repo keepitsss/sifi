@@ -19,6 +19,25 @@ macro_rules! cx_writeln {
     };
 }
 
+macro_rules! derive_pre_render_hooks {
+    ($lifetime:lifetime, $ty:ty) => {
+        impl<$lifetime> PreRenderHooks<$lifetime> for $ty {
+            type This = Self;
+            unsafe fn set_pre_render_hook(
+                &self,
+                hook: impl FnMut(&Self, &mut Context) + $lifetime,
+            ) {
+                unsafe {
+                    self.pre_render_hook.set_pre_render_hook(hook);
+                }
+            }
+            fn take_pre_render_hook(&self) -> Option<Hook<$lifetime, Self>> {
+                self.pre_render_hook.take_pre_render_hook()
+            }
+        }
+    };
+}
+
 pub mod utils;
 
 pub trait Renderable<'re> {
@@ -55,17 +74,7 @@ pub struct Html<'re> {
     pub body: &'re RefCell<Body<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
-impl<'re> PreRenderHooks<'re> for Html<'re> {
-    type This = Self;
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
-        unsafe {
-            self.pre_render_hook.set_pre_render_hook(hook);
-        }
-    }
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
-        self.pre_render_hook.take_pre_render_hook()
-    }
-}
+derive_pre_render_hooks!('re, Html<'re>);
 impl<'re> Html<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Html {
@@ -115,17 +124,7 @@ impl<'re> Head<'re> {
         self.styles.push(self.styles.bump().alloc_str(style.trim()));
     }
 }
-impl<'re> PreRenderHooks<'re> for Head<'re> {
-    type This = Self;
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
-        unsafe {
-            self.pre_render_hook.set_pre_render_hook(hook);
-        }
-    }
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
-        self.pre_render_hook.take_pre_render_hook()
-    }
-}
+derive_pre_render_hooks!('re, Head<'re>);
 impl<'re> SimpleElement<'re> for Head<'re> {
     unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
@@ -186,17 +185,7 @@ impl<'re> Body<'re> {
         }
     }
 }
-impl<'re> PreRenderHooks<'re> for Body<'re> {
-    type This = Self;
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
-        unsafe {
-            self.pre_render_hook.set_pre_render_hook(hook);
-        }
-    }
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
-        self.pre_render_hook.take_pre_render_hook()
-    }
-}
+derive_pre_render_hooks!('re, Body<'re>);
 impl<'re> SimpleElement<'re> for Body<'re> {
     unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
     where
@@ -378,17 +367,7 @@ pub struct Div<'re> {
     arena: &'re Bump,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
-impl<'re> PreRenderHooks<'re> for Div<'re> {
-    type This = Self;
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self, &mut Context) + 're) {
-        unsafe {
-            self.pre_render_hook.set_pre_render_hook(hook);
-        }
-    }
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self>> {
-        self.pre_render_hook.take_pre_render_hook()
-    }
-}
+derive_pre_render_hooks!('re, Div<'re>);
 impl<'re> Component<'re> for Div<'re> {}
 impl<'re> Div<'re> {
     fn new_in(arena: &'re Bump) -> Self {
