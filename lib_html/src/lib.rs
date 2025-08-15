@@ -106,21 +106,23 @@ pub mod tailwind;
 
 pub struct Html<'re> {
     head: &'re RefCell<Head<'re>>,
-    body: &'re RefCell<Body<'re>>,
+    body: Option<&'re RefCell<Body<'re>>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
+    arena: &'re Bump,
 }
 derive_pre_render_hooks!('re, Html<'re>);
 impl<'re> Html<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Html {
             head: arena.alloc(RefCell::new(Head::new_in(arena))),
-            body: arena.alloc(RefCell::new(Body::new_in(arena))),
+            body: None,
             pre_render_hook: PreRenderHookStorage::new_in(arena),
+            arena,
         }
     }
-    pub fn add_to_body(&mut self, body: impl FlowContent<'re> + 're) {
-        let children = &mut self.body.borrow_mut().children;
-        children.push(body.into_any_element(children.bump()));
+    pub fn body(&mut self, body: Body<'re>) {
+        assert!(self.body.is_none());
+        self.body = Some(self.arena.alloc(RefCell::new(body)));
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
@@ -131,7 +133,9 @@ impl<'re> SimpleElement<'re> for Html<'re> {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
-            children: bumpalo::vec![in arena; self.body as &dyn Renderable].into_bump_slice(),
+            children:
+                bumpalo::vec![in arena; self.body.expect("body should be set") as &dyn Renderable]
+                    .into_bump_slice(),
             late_children: bumpalo::vec![in arena; self.head as &dyn Renderable].into_bump_slice(),
         }
     }
@@ -213,13 +217,19 @@ impl<'re> PhrasingContent<'re> for &'re mut str {}
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
+    arena: &'re Bump,
 }
 impl<'re> Body<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Body {
             children: Vec::new_in(arena),
             pre_render_hook: PreRenderHookStorage::new_in(arena),
+            arena,
         }
+    }
+    pub fn child(mut self, child: impl FlowContent<'re> + 're) -> Self {
+        self.children.push(child.into_any_element(self.arena));
+        self
     }
 }
 derive_pre_render_hooks!('re, Body<'re>);
@@ -707,6 +717,9 @@ impl<'re> SimpleElement<'re> for Link<'re> {
 
 pub fn html(arena: &Bump) -> Html<'_> {
     Html::new_in(arena)
+}
+pub fn body(arena: &Bump) -> Body<'_> {
+    Body::new_in(arena)
 }
 
 pub fn div(arena: &Bump) -> Div<'_> {

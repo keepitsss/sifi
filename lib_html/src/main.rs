@@ -16,14 +16,7 @@ fn main() {
     let arena = cx.arena;
 
     let mut html = html(arena);
-    html.add_to_body(
-        div(arena)
-            .child(h1(arena).child("Example Domain"))
-            .child(p(arena).child(
-                "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
-            ))
-            .child(p(arena).child(a(arena).href("https://www.iana.org/domains/example").child("More information...")))
-    );
+    html.body(body(arena).child(example_page(arena)));
     cx.styles.extend([
         "
 body {
@@ -67,4 +60,13 @@ a:link, a:visited {
 
     println!("{output}");
     std::fs::write("index.html", output).unwrap();
+}
+
+fn example_page(arena: &Bump) -> impl FlowContent<'_> {
+    div(arena)
+        .child(h1(arena).child("Example Domain"))
+        .child(p(arena).child(
+            "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
+        ))
+        .child(p(arena).child(a(arena).href("https://www.iana.org/domains/example").child("More information...")))
 }

@@ -1,4 +1,3 @@
-
 use super::*;
 pub trait TailwindExt<'re>: BuiltinHtmlElement + PreRenderHooks<'re> {
     fn font_sans(self) -> Self {
