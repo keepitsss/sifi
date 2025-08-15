@@ -18,10 +18,7 @@ fn main() {
     let mut html = html(arena);
     html.add_to_body(
         div(arena)
-            .id("id2")
-            .class("some-class")
-            .class("other")
-            .classes(["some1", "some2"])
+            .child(h1(arena).child("Example Domain"))
             .child(div(arena).id("id1").child("hi")),
     );
     cx.styles.extend([

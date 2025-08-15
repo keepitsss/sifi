@@ -203,6 +203,10 @@ impl<'re> Renderable<'re> for &'re mut str {
         writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
+impl<'re> FlowContent<'re> for &'re str {}
+impl<'re> PhrasingContent<'re> for &'re str {}
+impl<'re> FlowContent<'re> for &'re mut str {}
+impl<'re> PhrasingContent<'re> for &'re mut str {}
 
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
@@ -465,10 +469,88 @@ impl<'re> SimpleElement<'re> for Div<'re> {
     }
 }
 
+pub struct H1<'re> {
+    pub classes: Vec<'re, &'re str>,
+    pub id: Option<&'re str>,
+    pub children: Vec<'re, AnyElement<'re>>,
+    arena: &'re Bump,
+    pre_render_hook: PreRenderHookStorage<'re, Self>,
+}
+impl BuiltinHtmlElement for H1<'_> {
+    fn class(mut self, class: &str) -> Self {
+        assert!(!self.classes.contains(&class));
+        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!class.is_empty());
+        self.classes.push(self.arena.alloc_str(class));
+        self
+    }
+    fn id(mut self, id: &str) -> Self {
+        assert!(self.id.is_none());
+        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!id.is_empty());
+        self.id = Some(self.arena.alloc_str(id));
+        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
+            let id = this.id.unwrap();
+            if cx.ids.contains(id) {
+                panic!("'{id}' id duplicate");
+            }
+            cx.ids.insert(cx.arena.alloc_str(id));
+        })
+    }
+}
+derive_pre_render_hooks!('re, H1<'re>);
+impl<'re> FlowContent<'re> for H1<'re> {}
+impl<'re> HeadingContent<'re> for H1<'re> {}
+impl<'re> H1<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        H1 {
+            classes: Vec::new_in(arena),
+            id: None,
+            children: Vec::new_in(arena),
+            arena,
+            pre_render_hook: PreRenderHookStorage::new_in(arena),
+        }
+    }
+    pub fn child(mut self, child: impl PhrasingContent<'re> + 're) -> Self {
+        self.children.push(child.into_any_element(self.arena));
+        self
+    }
+}
+impl<'re> SimpleElement<'re> for H1<'re> {
+    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
+    where
+        'arena: 're,
+    {
+        let mut attrs = Vec::new_in(arena);
+        if let Some(id) = self.id {
+            attrs.push(HtmlAttribute {
+                name: "id",
+                value: HtmlValue::String(id),
+            });
+        }
+        if !self.classes.is_empty() {
+            attrs.push(HtmlAttribute {
+                name: "class",
+                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+            })
+        }
+
+        GenericHtmlElement {
+            name: arena.alloc("h1"),
+            attributes: attrs.into_bump_slice(),
+            children: strip_anyelement(arena, &self.children),
+            late_children: &[],
+        }
+    }
+}
+
 pub fn html(arena: &Bump) -> Html<'_> {
     Html::new_in(arena)
 }
 
 pub fn div(arena: &Bump) -> Div<'_> {
     Div::new_in(arena)
+}
+pub fn h1(arena: &Bump) -> H1<'_> {
+    H1::new_in(arena)
 }
