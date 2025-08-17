@@ -108,14 +108,6 @@ pub struct Html<'re> {
 }
 derive_pre_render_hooks!('re, Html<'re>);
 impl<'re> Html<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Html {
-            head: Head::new_in(arena),
-            body: None,
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-            arena,
-        }
-    }
     pub fn body(&mut self, body: Body<'re>) {
         assert!(self.body.is_none());
         self.body = Some(body);
@@ -137,14 +129,6 @@ impl<'re> SimpleElement<'re> for Html<'re> {
 pub struct Head<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
     arena: &'re Bump,
-}
-impl<'re> Head<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Head {
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-            arena,
-        }
-    }
 }
 derive_pre_render_hooks!('re, Head<'re>);
 impl<'re> SimpleElement<'re> for Head<'re> {
@@ -205,13 +189,6 @@ pub struct Body<'re> {
     arena: &'re Bump,
 }
 impl<'re> Body<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Body {
-            children: Vec::new_in(arena),
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-            arena,
-        }
-    }
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -410,15 +387,6 @@ impl BuiltinHtmlElement for Div<'_> {
 derive_pre_render_hooks!('re, Div<'re>);
 impl FlowContent for Div<'_> {}
 impl<'re> Div<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Div {
-            classes: Vec::new_in(arena),
-            id: None,
-            children: Vec::new_in(arena),
-            arena,
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        }
-    }
     pub fn child(mut self, child: impl Renderable + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -481,15 +449,6 @@ derive_pre_render_hooks!('re, Heading1<'re>);
 impl FlowContent for Heading1<'_> {}
 impl HeadingContent for Heading1<'_> {}
 impl<'re> Heading1<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Heading1 {
-            classes: Vec::new_in(arena),
-            id: None,
-            children: Vec::new_in(arena),
-            arena,
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        }
-    }
     pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -551,15 +510,6 @@ impl BuiltinHtmlElement for Paragraph<'_> {
 derive_pre_render_hooks!('re, Paragraph<'re>);
 impl FlowContent for Paragraph<'_> {}
 impl<'re> Paragraph<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Paragraph {
-            classes: Vec::new_in(arena),
-            id: None,
-            children: Vec::new_in(arena),
-            arena,
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        }
-    }
     pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -626,18 +576,6 @@ derive_pre_render_hooks!('re, Link<'re>);
 impl FlowContent for Link<'_> {}
 impl PhrasingContent for Link<'_> {}
 impl<'re> Link<'re> {
-    fn new_in(arena: &'re Bump) -> Self {
-        Link {
-            classes: Vec::new_in(arena),
-            id: None,
-            children: Vec::new_in(arena),
-            href: None,
-            download: false,
-            ping: Vec::new_in(arena),
-            arena,
-            pre_render_hook: PreRenderHookStorage::new_in(arena),
-        }
-    }
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -711,21 +649,63 @@ impl<'re> SimpleElement<'re> for Link<'re> {
 }
 
 pub fn html(arena: &Bump) -> Html<'_> {
-    Html::new_in(arena)
+    Html {
+        head: head(arena),
+        body: None,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        arena,
+    }
+}
+fn head(arena: &Bump) -> Head<'_> {
+    Head {
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        arena,
+    }
 }
 pub fn body(arena: &Bump) -> Body<'_> {
-    Body::new_in(arena)
+    Body {
+        children: Vec::new_in(arena),
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        arena,
+    }
 }
 
 pub fn div(arena: &Bump) -> Div<'_> {
-    Div::new_in(arena)
+    Div {
+        classes: Vec::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
 }
 pub fn h1(arena: &Bump) -> Heading1<'_> {
-    Heading1::new_in(arena)
+    Heading1 {
+        classes: Vec::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
 }
 pub fn p(arena: &Bump) -> Paragraph<'_> {
-    Paragraph::new_in(arena)
+    Paragraph {
+        classes: Vec::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
 }
 pub fn a(arena: &Bump) -> Link<'_> {
-    Link::new_in(arena)
+    Link {
+        classes: Vec::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        href: None,
+        download: false,
+        ping: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
 }
