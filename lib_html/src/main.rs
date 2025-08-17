@@ -62,7 +62,7 @@ a:link, a:visited {
     std::fs::write("index.html", output).unwrap();
 }
 
-fn example_page(arena: &Bump) -> impl FlowContent<'_> {
+fn example_page(arena: &Bump) -> impl FlowContent {
     div(arena)
         .child(h1(arena).child("Example Domain"))
         .child(p(arena).child(

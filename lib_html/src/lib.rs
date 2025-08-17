@@ -38,8 +38,8 @@ macro_rules! derive_pre_render_hooks {
 
 pub mod utils;
 
-pub trait Renderable<'re> {
-    fn render(&self, cx: &mut Context<'re>);
+pub trait Renderable {
+    fn render(&self, cx: &mut Context);
 }
 
 pub struct Context<'re> {
@@ -51,38 +51,37 @@ pub struct Context<'re> {
 }
 
 #[derive(Clone, Copy)]
-pub struct AnyElement<'re>(pub &'re dyn Renderable<'re>);
-impl<'re> Renderable<'re> for AnyElement<'re> {
-    fn render(&self, cx: &mut Context<'re>) {
+pub struct AnyElement<'re>(pub &'re dyn Renderable);
+impl<'re> Renderable for AnyElement<'re> {
+    fn render(&self, cx: &mut Context) {
         self.0.render(cx);
     }
 }
-pub trait Component<'re>: Renderable<'re> + Sized + 're {
+pub trait IntoElement<'re> {
     fn into_any_element(self, arena: &'re Bump) -> AnyElement<'re>;
 }
-impl<'re, T> Component<'re> for T
+impl<'re, T> IntoElement<'re> for T
 where
-    T: Renderable<'re> + 're,
+    T: Renderable + 're,
 {
     fn into_any_element(self, arena: &'re Bump) -> AnyElement<'re> {
-        let value = arena.alloc(self);
-        AnyElement(value)
+        AnyElement(arena.alloc(self) as &dyn Renderable)
     }
 }
 /// https://html.spec.whatwg.org/#flow-content-2
-pub trait FlowContent<'re>: Component<'re> {}
-pub trait SectioningContent<'re>: FlowContent<'re> {}
-pub trait HeadingContent<'re>: FlowContent<'re> {}
-pub trait PhrasingContent<'re>: FlowContent<'re> {}
-pub trait EmbeddedContent<'re>: PhrasingContent<'re> {}
-pub trait InteractiveContent<'re>: FlowContent<'re> {}
-pub trait MetadataContent<'re>: Component<'re> {}
+pub trait FlowContent: Renderable {}
+pub trait SectioningContent: FlowContent {}
+pub trait HeadingContent: FlowContent {}
+pub trait PhrasingContent: FlowContent {}
+pub trait EmbeddedContent: PhrasingContent {}
+pub trait InteractiveContent: FlowContent {}
+pub trait MetadataContent: Renderable {}
 /// # Safety
 /// see docs, TLDR: should have content
-pub unsafe trait PalpableConent<'re>: FlowContent<'re> {}
-pub trait SelectInnerConent<'re>: Component<'re> {}
-pub trait OptgroupInnerConent<'re>: Component<'re> {}
-pub trait OptionInnerConent<'re>: Component<'re> {}
+pub unsafe trait PalpableConent: FlowContent {}
+pub trait SelectInnerConent: Renderable {}
+pub trait OptgroupInnerConent: Renderable {}
+pub trait OptionInnerConent: Renderable {}
 
 pub trait BuiltinHtmlElement: Sized {
     fn class(self, class: &str) -> Self;
@@ -105,7 +104,6 @@ pub struct Html<'re> {
     head: Head<'re>,
     body: Option<Body<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
-    #[allow(unused)]
     arena: &'re Bump,
 }
 derive_pre_render_hooks!('re, Html<'re>);
@@ -124,33 +122,35 @@ impl<'re> Html<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
             children:
-                bumpalo::vec![in arena; arena.alloc(self.body.clone().expect("body should be set")) as &dyn Renderable]
+                bumpalo::vec![in self.arena; self.arena.alloc(self.body.clone().expect("body should be set")) as &dyn Renderable]
                     .into_bump_slice(),
-            late_children: bumpalo::vec![in arena; arena.alloc(self.head.clone()) as &dyn Renderable].into_bump_slice(),
+                late_children: bumpalo::vec![in self.arena; self.arena.alloc(self.head.clone()) as &dyn Renderable].into_bump_slice(),
         }
     }
 }
 #[derive(Clone)]
 pub struct Head<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
+    arena: &'re Bump,
 }
 impl<'re> Head<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Head {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
+            arena,
         }
     }
 }
 derive_pre_render_hooks!('re, Head<'re>);
 impl<'re> SimpleElement<'re> for Head<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
-        let mut children = Vec::new_in(arena);
-        children.push(arena.alloc(GlobalStyles) as &dyn Renderable);
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+        let mut children = Vec::new_in(self.arena);
+        children.push(self.arena.alloc(GlobalStyles) as &dyn Renderable);
         GenericHtmlElement {
             name: "head",
             attributes: &[],
@@ -161,15 +161,15 @@ impl<'re> SimpleElement<'re> for Head<'re> {
 }
 
 struct GlobalStyles;
-impl Renderable<'_> for GlobalStyles {
-    fn render(&self, cx: &mut Context<'_>) {
+impl Renderable for GlobalStyles {
+    fn render(&self, cx: &mut Context) {
         let mut styles = Vec::new_in(cx.arena);
         styles.extend(cx.styles.iter());
         Style(styles).render(cx)
     }
 }
 struct Style<'re>(Vec<'re, &'re str>);
-impl<'re> Renderable<'re> for Style<'re> {
+impl<'re> Renderable for Style<'re> {
     fn render(&self, cx: &mut Context) {
         cx_writeln!(cx, "{}<style>", cx.indentation);
         cx.indentation.level += 1;
@@ -183,20 +183,20 @@ impl<'re> Renderable<'re> for Style<'re> {
     }
 }
 
-impl<'re> Renderable<'re> for &'re str {
+impl Renderable for &str {
     fn render(&self, cx: &mut Context) {
         writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
-impl<'re> Renderable<'re> for &'re mut str {
+impl Renderable for &mut str {
     fn render(&self, cx: &mut Context) {
         writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
-impl<'re> FlowContent<'re> for &'re str {}
-impl<'re> PhrasingContent<'re> for &'re str {}
-impl<'re> FlowContent<'re> for &'re mut str {}
-impl<'re> PhrasingContent<'re> for &'re mut str {}
+impl FlowContent for &str {}
+impl PhrasingContent for &str {}
+impl FlowContent for &mut str {}
+impl PhrasingContent for &mut str {}
 
 #[derive(Clone)]
 pub struct Body<'re> {
@@ -212,18 +212,18 @@ impl<'re> Body<'re> {
             arena,
         }
     }
-    pub fn child(mut self, child: impl FlowContent<'re> + 're) -> Self {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
 }
 derive_pre_render_hooks!('re, Body<'re>);
 impl<'re> SimpleElement<'re> for Body<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         GenericHtmlElement {
             name: "body",
             attributes: &[],
-            children: strip_anyelement(arena, &self.children),
+            children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
         }
     }
@@ -241,7 +241,7 @@ pub struct HtmlAttribute<'re> {
     name: &'re str,
     value: HtmlValue<'re>,
 }
-impl<'re> Renderable<'re> for HtmlAttribute<'re> {
+impl<'re> Renderable for HtmlAttribute<'re> {
     fn render(&self, cx: &mut Context) {
         let name = &self.name;
         match &self.value {
@@ -257,12 +257,12 @@ impl<'re> Renderable<'re> for HtmlAttribute<'re> {
 pub struct GenericHtmlElement<'re> {
     pub name: &'re str,
     pub attributes: &'re [HtmlAttribute<'re>],
-    pub children: &'re [&'re dyn Renderable<'re>],
+    pub children: &'re [&'re dyn Renderable],
     /// It will render after children, but displayed before.
-    pub late_children: &'re [&'re dyn Renderable<'re>],
+    pub late_children: &'re [&'re dyn Renderable],
 }
-impl<'re> Renderable<'re> for GenericHtmlElement<'re> {
-    fn render(&self, cx: &mut Context<'re>) {
+impl<'re> Renderable for GenericHtmlElement<'re> {
+    fn render(&self, cx: &mut Context) {
         cx_write!(cx, "{}<{}", cx.indentation, self.name);
         for attribute in self.attributes {
             attribute.render(cx);
@@ -298,27 +298,27 @@ pub trait SimpleElement<'re>: PreRenderHooks<'re> {
     #[allow(clippy::wrong_self_convention)]
     /// # Safety
     /// You should call pre_render_hooks before rendering
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re>;
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re>;
 }
 fn strip_anyelement<'re>(
     arena: &'re Bump,
     children: &Vec<'re, AnyElement<'re>>,
-) -> &'re [&'re dyn Renderable<'re>] {
+) -> &'re [&'re dyn Renderable] {
     let mut children_clone = Vec::new_in(arena);
     children_clone.extend(children.into_iter().map(|x| x.0));
     children_clone.into_bump_slice()
 }
-impl<'re, T> Renderable<'re> for T
+impl<'re, T> Renderable for T
 where
     T: SimpleElement<'re, This = Self>,
 {
-    fn render(&self, cx: &mut Context<'re>) {
+    fn render(&self, cx: &mut Context) {
         if let Some(hook) = self.get_pre_render_hook() {
             hook(self, cx);
         }
         // SAFETY: hook called
         unsafe {
-            self.into_html_element(cx.arena).render(cx);
+            self.into_html_element().render(cx);
         }
     }
 }
@@ -408,7 +408,7 @@ impl BuiltinHtmlElement for Div<'_> {
     }
 }
 derive_pre_render_hooks!('re, Div<'re>);
-impl<'re> FlowContent<'re> for Div<'re> {}
+impl FlowContent for Div<'_> {}
 impl<'re> Div<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Div {
@@ -419,14 +419,14 @@ impl<'re> Div<'re> {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
-    pub fn child(mut self, child: impl Component<'re> + 're) -> Self {
+    pub fn child(mut self, child: impl Renderable + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
 }
 impl<'re> SimpleElement<'re> for Div<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
-        let mut attrs = Vec::new_in(arena);
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+        let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
                 name: "id",
@@ -436,13 +436,13 @@ impl<'re> SimpleElement<'re> for Div<'re> {
         if !self.classes.is_empty() {
             attrs.push(HtmlAttribute {
                 name: "class",
-                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
             })
         }
         GenericHtmlElement {
-            name: arena.alloc("div"),
+            name: self.arena.alloc("div"),
             attributes: attrs.into_bump_slice(),
-            children: strip_anyelement(arena, &self.children),
+            children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
         }
     }
@@ -478,8 +478,8 @@ impl BuiltinHtmlElement for Heading1<'_> {
     }
 }
 derive_pre_render_hooks!('re, Heading1<'re>);
-impl<'re> FlowContent<'re> for Heading1<'re> {}
-impl<'re> HeadingContent<'re> for Heading1<'re> {}
+impl FlowContent for Heading1<'_> {}
+impl HeadingContent for Heading1<'_> {}
 impl<'re> Heading1<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Heading1 {
@@ -490,14 +490,14 @@ impl<'re> Heading1<'re> {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
-    pub fn child(mut self, child: impl PhrasingContent<'re> + 're) -> Self {
+    pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
 }
 impl<'re> SimpleElement<'re> for Heading1<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
-        let mut attrs = Vec::new_in(arena);
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+        let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
                 name: "id",
@@ -507,13 +507,13 @@ impl<'re> SimpleElement<'re> for Heading1<'re> {
         if !self.classes.is_empty() {
             attrs.push(HtmlAttribute {
                 name: "class",
-                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
             })
         }
         GenericHtmlElement {
-            name: arena.alloc("h1"),
+            name: self.arena.alloc("h1"),
             attributes: attrs.into_bump_slice(),
-            children: strip_anyelement(arena, &self.children),
+            children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
         }
     }
@@ -549,7 +549,7 @@ impl BuiltinHtmlElement for Paragraph<'_> {
     }
 }
 derive_pre_render_hooks!('re, Paragraph<'re>);
-impl<'re> FlowContent<'re> for Paragraph<'re> {}
+impl FlowContent for Paragraph<'_> {}
 impl<'re> Paragraph<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Paragraph {
@@ -560,14 +560,14 @@ impl<'re> Paragraph<'re> {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
-    pub fn child(mut self, child: impl PhrasingContent<'re> + 're) -> Self {
+    pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
 }
 impl<'re> SimpleElement<'re> for Paragraph<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
-        let mut attrs = Vec::new_in(arena);
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+        let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
                 name: "id",
@@ -577,13 +577,13 @@ impl<'re> SimpleElement<'re> for Paragraph<'re> {
         if !self.classes.is_empty() {
             attrs.push(HtmlAttribute {
                 name: "class",
-                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
             })
         }
         GenericHtmlElement {
-            name: arena.alloc("p"),
+            name: self.arena.alloc("p"),
             attributes: attrs.into_bump_slice(),
-            children: strip_anyelement(arena, &self.children),
+            children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
         }
     }
@@ -623,8 +623,8 @@ impl BuiltinHtmlElement for Link<'_> {
     }
 }
 derive_pre_render_hooks!('re, Link<'re>);
-impl<'re> FlowContent<'re> for Link<'re> {}
-impl<'re> PhrasingContent<'re> for Link<'re> {}
+impl FlowContent for Link<'_> {}
+impl PhrasingContent for Link<'_> {}
 impl<'re> Link<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Link {
@@ -638,7 +638,7 @@ impl<'re> Link<'re> {
             pre_render_hook: PreRenderHookStorage::new_in(arena),
         }
     }
-    pub fn child(mut self, child: impl FlowContent<'re> + 're) -> Self {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
@@ -663,8 +663,8 @@ impl<'re> Link<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Link<'re> {
-    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
-        let mut attrs = Vec::new_in(arena);
+    unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+        let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
                 name: "id",
@@ -674,7 +674,7 @@ impl<'re> SimpleElement<'re> for Link<'re> {
         if !self.classes.is_empty() {
             attrs.push(HtmlAttribute {
                 name: "class",
-                value: HtmlValue::String(arena.alloc_str(&self.classes.join(" "))),
+                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
             })
         }
         if let Some(href) = self.href {
@@ -690,7 +690,7 @@ impl<'re> SimpleElement<'re> for Link<'re> {
             })
         }
         if !self.ping.is_empty() {
-            let mut value = bumpalo::collections::String::new_in(arena);
+            let mut value = bumpalo::collections::String::new_in(self.arena);
             value.push_str(self.ping[0]);
             for url in self.ping.iter().skip(1) {
                 value.push(' ');
@@ -702,9 +702,9 @@ impl<'re> SimpleElement<'re> for Link<'re> {
             })
         }
         GenericHtmlElement {
-            name: arena.alloc("a"),
+            name: self.arena.alloc("a"),
             attributes: attrs.into_bump_slice(),
-            children: strip_anyelement(arena, &self.children),
+            children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
         }
     }
