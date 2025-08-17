@@ -126,10 +126,7 @@ impl<'re> Html<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         GenericHtmlElement {
             name: "html",
             attributes: &[],
@@ -160,11 +157,7 @@ impl<'re> Head<'re> {
 }
 derive_pre_render_hooks!('re, Head<'re>);
 impl<'re> SimpleElement<'re> for Head<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-        Self: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         let mut children = Vec::new_in(arena);
         children.push(arena.alloc(GlobalStyles) as &dyn Renderable);
         GenericHtmlElement {
@@ -234,10 +227,7 @@ impl<'re> Body<'re> {
 }
 derive_pre_render_hooks!('re, Body<'re>);
 impl<'re> SimpleElement<'re> for Body<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         GenericHtmlElement {
             name: "body",
             attributes: &[],
@@ -316,12 +306,10 @@ pub trait SimpleElement<'re>: PreRenderHooks<'re> {
     #[allow(clippy::wrong_self_convention)]
     /// # Safety
     /// You should call pre_render_hooks before rendering
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're;
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re>;
 }
-fn strip_anyelement<'re, 'arena: 're>(
-    arena: &'arena Bump,
+fn strip_anyelement<'re>(
+    arena: &'re Bump,
     children: &Vec<'re, AnyElement<'re>>,
 ) -> &'re [&'re dyn Renderable<'re>] {
     let mut children_clone = Vec::new_in(arena);
@@ -454,10 +442,7 @@ impl<'re> Div<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Div<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
@@ -528,10 +513,7 @@ impl<'re> Heading1<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Heading1<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
@@ -601,10 +583,7 @@ impl<'re> Paragraph<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Paragraph<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
@@ -701,10 +680,7 @@ impl<'re> Link<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Link<'re> {
-    unsafe fn into_html_element<'arena>(&self, arena: &'arena Bump) -> GenericHtmlElement<'re>
-    where
-        'arena: 're,
-    {
+    unsafe fn into_html_element(&self, arena: &'re Bump) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(arena);
         if let Some(id) = self.id {
             attrs.push(HtmlAttribute {
