@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
 use bumpalo::Bump;
-use lib_html::{/* tailwind::TailwindExt,*/ *};
+use lib_html::{tailwind::TailwindExt, *};
 
 fn main() {
     let allocator = Bump::new();
 
     let mut html = html(&allocator);
-    html.body(body(&allocator).child(example_page(&allocator)));
+    html.body(body(&allocator).font_sans().child(example_page(&allocator)));
 
     let mut cx = Context {
         indentation: utils::Indentation::default(),
@@ -23,7 +23,6 @@ body {
     background-color: #f0f0f2;
     margin: 0;
     padding: 0;
-    font-family: sans-serif;
 }
         ",
         "
