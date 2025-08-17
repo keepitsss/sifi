@@ -184,11 +184,16 @@ impl PhrasingContent for &mut str {}
 
 #[derive(Clone)]
 pub struct Body<'re> {
+    pub classes: Classes<'re>,
     pub children: Vec<'re, AnyElement<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
     arena: &'re Bump,
 }
 impl<'re> Body<'re> {
+    pub fn class(mut self, class: &str) -> Self {
+        self.classes.add(class);
+        self
+    }
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
@@ -359,6 +364,7 @@ pub trait Attribute<'re> {
     fn new_in(arena: &'re Bump) -> Self;
     fn render(&self) -> Option<HtmlAttribute<'re>>;
 }
+#[derive(Clone)]
 pub struct Classes<'re>(pub Vec<'re, &'re str>);
 impl<'re> Attribute<'re> for Classes<'re> {
     fn new_in(arena: &'re Bump) -> Self {
@@ -669,6 +675,7 @@ fn head(arena: &Bump) -> Head<'_> {
 }
 pub fn body(arena: &Bump) -> Body<'_> {
     Body {
+        classes: Classes::new_in(arena),
         children: Vec::new_in(arena),
         pre_render_hook: PreRenderHookStorage::new_in(arena),
         arena,

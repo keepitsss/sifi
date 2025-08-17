@@ -4,10 +4,10 @@ pub trait TailwindExt<'re>: BuiltinHtmlElement + PreRenderHooks<'re> {
         self.class("font-sans").with_pre_render_hook(|_this, cx| {
             cx.styles.insert(
                 "
-    .font-sans {
-        font-family: sans-serif;
-    }
-                    ",
+.font-sans {
+    font-family: sans-serif;
+}
+                ",
             );
         })
     }
