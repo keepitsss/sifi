@@ -6,6 +6,9 @@ use lib_html::{/* tailwind::TailwindExt,*/ *};
 fn main() {
     let allocator = Bump::new();
 
+    let mut html = html(&allocator);
+    html.body(body(&allocator).child(example_page(&allocator)));
+
     let mut cx = Context {
         indentation: utils::Indentation::default(),
         output: String::new(),
@@ -13,10 +16,7 @@ fn main() {
         ids: HashSet::new(),
         styles: HashSet::new(),
     };
-    let arena = cx.arena;
 
-    let mut html = html(arena);
-    html.body(body(arena).child(example_page(arena)));
     cx.styles.extend([
         "
 body {
@@ -63,10 +63,14 @@ a:link, a:visited {
 }
 
 fn example_page(arena: &Bump) -> impl FlowContent {
-    div(arena)
-        .child(h1(arena).child("Example Domain"))
-        .child(p(arena).child(
+    let header = h1(arena).child("Example Domain");
+    let text = p(arena).child(
             "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
-        ))
-        .child(p(arena).child(a(arena).href("https://www.iana.org/domains/example").child("More information...")))
+        );
+    let link = p(arena).child(
+        a(arena)
+            .href("https://www.iana.org/domains/example")
+            .child("More information..."),
+    );
+    div(arena).child(header).child(text).child(link)
 }
