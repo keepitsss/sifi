@@ -2,11 +2,7 @@
 //!
 //! Idea: implement palpable content by initializing element with pre_render_callback check
 
-use std::{
-    cell::{Cell, RefCell},
-    collections::HashSet,
-    fmt::Write,
-};
+use std::{cell::RefCell, collections::HashSet, fmt::Write};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -26,15 +22,15 @@ macro_rules! derive_pre_render_hooks {
         impl<$lifetime> PreRenderHooks<$lifetime> for $ty {
             type This = Self;
             unsafe fn set_pre_render_hook(
-                &self,
-                hook: impl FnMut(&Self, &mut Context) + $lifetime,
+                &mut self,
+                hook: impl Fn(&Self, &mut Context) + $lifetime,
             ) {
                 unsafe {
                     self.pre_render_hook.set_pre_render_hook(hook);
                 }
             }
-            fn take_pre_render_hook(&self) -> Option<Hook<$lifetime, Self>> {
-                self.pre_render_hook.take_pre_render_hook()
+            fn get_pre_render_hook(&self) -> Option<Hook<$lifetime, Self>> {
+                self.pre_render_hook.get_pre_render_hook()
             }
         }
     };
@@ -321,7 +317,7 @@ where
     T: SimpleElement<'re, This = Self>,
 {
     fn render(&self, cx: &mut Context<'re>) {
-        if let Some(hook) = self.take_pre_render_hook() {
+        if let Some(hook) = self.get_pre_render_hook() {
             hook(self, cx);
         }
         // SAFETY: hook called
@@ -331,67 +327,57 @@ where
     }
 }
 
-type Hook<'re, This> = &'re mut dyn FnMut(&This, &mut Context);
+type Hook<'re, This> = &'re dyn Fn(&This, &mut Context);
 pub trait PreRenderHooks<'re>: Sized
 where
     Self: 're,
 {
     type This;
     /// # Safety
-    /// Hook should be unset(or taken out)
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&Self::This, &mut Context) + 're);
+    /// This will overwrite previous hook
+    unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&Self::This, &mut Context) + 're);
 
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, Self::This>>;
+    fn get_pre_render_hook(&self) -> Option<Hook<'re, Self::This>>;
 
-    fn with_pre_render_hook(self, new_hook: impl FnMut(&Self::This, &mut Context) + 're) -> Self {
+    fn with_pre_render_hook(mut self, new_hook: impl Fn(&Self::This, &mut Context) + 're) -> Self {
         self.add_pre_render_hook(new_hook);
         self
     }
-    fn add_pre_render_hook(&self, mut new_hook: impl FnMut(&Self::This, &mut Context) + 're) {
-        match self.take_pre_render_hook() {
-            Some(prev_hook) => {
-                // SAFETY: hook is taken out
-                unsafe {
-                    self.set_pre_render_hook(move |this, cx| {
-                        prev_hook(this, cx);
-                        new_hook(this, cx);
-                    });
-                }
-            }
-            None => {
-                // SAFETY: hook is taken out
-                unsafe {
-                    self.set_pre_render_hook(new_hook);
-                }
-            }
+    fn add_pre_render_hook(&mut self, new_hook: impl Fn(&Self::This, &mut Context) + 're) {
+        match self.get_pre_render_hook() {
+            Some(prev_hook) => unsafe {
+                self.set_pre_render_hook(move |this, cx| {
+                    prev_hook(this, cx);
+                    new_hook(this, cx);
+                });
+            },
+            None => unsafe {
+                self.set_pre_render_hook(new_hook);
+            },
         }
     }
 }
 
 struct PreRenderHookStorage<'re, This> {
-    hook: Cell<Option<Hook<'re, This>>>,
+    hook: Option<Hook<'re, This>>,
     arena: &'re Bump,
 }
 impl<'re, T> PreRenderHookStorage<'re, T> {
     fn new_in(arena: &'re Bump) -> Self {
-        PreRenderHookStorage {
-            hook: Cell::new(None),
-            arena,
-        }
+        PreRenderHookStorage { hook: None, arena }
     }
 }
 impl<'re, This> PreRenderHooks<'re> for PreRenderHookStorage<'re, This> {
     type This = This;
-    fn take_pre_render_hook(&self) -> Option<Hook<'re, This>> {
-        self.hook.take()
+    fn get_pre_render_hook(&self) -> Option<Hook<'re, This>> {
+        self.hook
     }
-    unsafe fn set_pre_render_hook(&self, hook: impl FnMut(&This, &mut Context) + 're) {
+    unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&This, &mut Context) + 're) {
         assert!(self.hook.take().is_none());
         let hook = self.arena.alloc(hook) as Hook<'re, This>;
-        self.hook
-            .set(Some(self.arena.alloc(|this: &This, cx: &mut Context| {
-                hook(this, cx);
-            })));
+        self.hook = Some(self.arena.alloc(|this: &This, cx: &mut Context| {
+            hook(this, cx);
+        }));
     }
 }
 
