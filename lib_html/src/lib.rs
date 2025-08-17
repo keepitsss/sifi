@@ -355,8 +355,37 @@ impl<'re, This> PreRenderHooks<'re> for PreRenderHookStorage<'re, This> {
     }
 }
 
+pub trait Attribute<'re> {
+    fn new_in(arena: &'re Bump) -> Self;
+    fn render(&self) -> Option<HtmlAttribute<'re>>;
+}
+pub struct Classes<'re>(pub Vec<'re, &'re str>);
+impl<'re> Attribute<'re> for Classes<'re> {
+    fn new_in(arena: &'re Bump) -> Self {
+        Self(Vec::new_in(arena))
+    }
+    fn render(&self) -> Option<HtmlAttribute<'re>> {
+        if self.0.is_empty() {
+            None
+        } else {
+            Some(HtmlAttribute {
+                name: "class",
+                value: HtmlValue::String(self.0.bump().alloc_str(&self.0.join(" "))),
+            })
+        }
+    }
+}
+impl<'re> Classes<'re> {
+    pub fn add(&mut self, class: &str) {
+        assert!(!self.0.contains(&class));
+        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!class.is_empty());
+        self.0.push(self.0.bump().alloc_str(class));
+    }
+}
+
 pub struct Div<'re> {
-    pub classes: Vec<'re, &'re str>,
+    pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
@@ -364,10 +393,7 @@ pub struct Div<'re> {
 }
 impl BuiltinHtmlElement for Div<'_> {
     fn class(mut self, class: &str) -> Self {
-        assert!(!self.classes.contains(&class));
-        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!class.is_empty());
-        self.classes.push(self.arena.alloc_str(class));
+        self.classes.add(class);
         self
     }
     fn id(mut self, id: &str) -> Self {
@@ -401,11 +427,8 @@ impl<'re> SimpleElement<'re> for Div<'re> {
                 value: HtmlValue::String(id),
             });
         }
-        if !self.classes.is_empty() {
-            attrs.push(HtmlAttribute {
-                name: "class",
-                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
-            })
+        if let Some(attr) = self.classes.render() {
+            attrs.push(attr);
         }
         GenericHtmlElement {
             name: self.arena.alloc("div"),
@@ -417,7 +440,7 @@ impl<'re> SimpleElement<'re> for Div<'re> {
 }
 
 pub struct Heading1<'re> {
-    pub classes: Vec<'re, &'re str>,
+    pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
@@ -425,10 +448,7 @@ pub struct Heading1<'re> {
 }
 impl BuiltinHtmlElement for Heading1<'_> {
     fn class(mut self, class: &str) -> Self {
-        assert!(!self.classes.contains(&class));
-        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!class.is_empty());
-        self.classes.push(self.arena.alloc_str(class));
+        self.classes.add(class);
         self
     }
     fn id(mut self, id: &str) -> Self {
@@ -463,11 +483,8 @@ impl<'re> SimpleElement<'re> for Heading1<'re> {
                 value: HtmlValue::String(id),
             });
         }
-        if !self.classes.is_empty() {
-            attrs.push(HtmlAttribute {
-                name: "class",
-                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
-            })
+        if let Some(attr) = self.classes.render() {
+            attrs.push(attr);
         }
         GenericHtmlElement {
             name: self.arena.alloc("h1"),
@@ -479,7 +496,7 @@ impl<'re> SimpleElement<'re> for Heading1<'re> {
 }
 
 pub struct Paragraph<'re> {
-    pub classes: Vec<'re, &'re str>,
+    pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
@@ -487,10 +504,7 @@ pub struct Paragraph<'re> {
 }
 impl BuiltinHtmlElement for Paragraph<'_> {
     fn class(mut self, class: &str) -> Self {
-        assert!(!self.classes.contains(&class));
-        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!class.is_empty());
-        self.classes.push(self.arena.alloc_str(class));
+        self.classes.add(class);
         self
     }
     fn id(mut self, id: &str) -> Self {
@@ -524,11 +538,8 @@ impl<'re> SimpleElement<'re> for Paragraph<'re> {
                 value: HtmlValue::String(id),
             });
         }
-        if !self.classes.is_empty() {
-            attrs.push(HtmlAttribute {
-                name: "class",
-                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
-            })
+        if let Some(attr) = self.classes.render() {
+            attrs.push(attr);
         }
         GenericHtmlElement {
             name: self.arena.alloc("p"),
@@ -540,7 +551,7 @@ impl<'re> SimpleElement<'re> for Paragraph<'re> {
 }
 
 pub struct Link<'re> {
-    pub classes: Vec<'re, &'re str>,
+    pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     // TODO: store Url
@@ -552,10 +563,7 @@ pub struct Link<'re> {
 }
 impl BuiltinHtmlElement for Link<'_> {
     fn class(mut self, class: &str) -> Self {
-        assert!(!self.classes.contains(&class));
-        assert!(class.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!class.is_empty());
-        self.classes.push(self.arena.alloc_str(class));
+        self.classes.add(class);
         self
     }
     fn id(mut self, id: &str) -> Self {
@@ -609,11 +617,8 @@ impl<'re> SimpleElement<'re> for Link<'re> {
                 value: HtmlValue::String(id),
             });
         }
-        if !self.classes.is_empty() {
-            attrs.push(HtmlAttribute {
-                name: "class",
-                value: HtmlValue::String(self.arena.alloc_str(&self.classes.join(" "))),
-            })
+        if let Some(attr) = self.classes.render() {
+            attrs.push(attr);
         }
         if let Some(href) = self.href {
             attrs.push(HtmlAttribute {
@@ -672,7 +677,7 @@ pub fn body(arena: &Bump) -> Body<'_> {
 
 pub fn div(arena: &Bump) -> Div<'_> {
     Div {
-        classes: Vec::new_in(arena),
+        classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
@@ -681,7 +686,7 @@ pub fn div(arena: &Bump) -> Div<'_> {
 }
 pub fn h1(arena: &Bump) -> Heading1<'_> {
     Heading1 {
-        classes: Vec::new_in(arena),
+        classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
@@ -690,7 +695,7 @@ pub fn h1(arena: &Bump) -> Heading1<'_> {
 }
 pub fn p(arena: &Bump) -> Paragraph<'_> {
     Paragraph {
-        classes: Vec::new_in(arena),
+        classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
@@ -699,7 +704,7 @@ pub fn p(arena: &Bump) -> Paragraph<'_> {
 }
 pub fn a(arena: &Bump) -> Link<'_> {
     Link {
-        classes: Vec::new_in(arena),
+        classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         href: None,
