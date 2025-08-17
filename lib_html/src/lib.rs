@@ -2,7 +2,7 @@
 //!
 //! Idea: implement palpable content by initializing element with pre_render_callback check
 
-use std::{cell::RefCell, collections::HashSet, fmt::Write};
+use std::{collections::HashSet, fmt::Write};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -100,17 +100,19 @@ pub trait BuiltinHtmlElement: Sized {
 }
 pub mod tailwind;
 
+#[derive(Clone)]
 pub struct Html<'re> {
-    head: &'re RefCell<Head<'re>>,
-    body: Option<&'re RefCell<Body<'re>>>,
+    head: Head<'re>,
+    body: Option<Body<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
+    #[allow(unused)]
     arena: &'re Bump,
 }
 derive_pre_render_hooks!('re, Html<'re>);
 impl<'re> Html<'re> {
     fn new_in(arena: &'re Bump) -> Self {
         Html {
-            head: arena.alloc(RefCell::new(Head::new_in(arena))),
+            head: Head::new_in(arena),
             body: None,
             pre_render_hook: PreRenderHookStorage::new_in(arena),
             arena,
@@ -118,7 +120,7 @@ impl<'re> Html<'re> {
     }
     pub fn body(&mut self, body: Body<'re>) {
         assert!(self.body.is_none());
-        self.body = Some(self.arena.alloc(RefCell::new(body)));
+        self.body = Some(body);
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
@@ -127,20 +129,13 @@ impl<'re> SimpleElement<'re> for Html<'re> {
             name: "html",
             attributes: &[],
             children:
-                bumpalo::vec![in arena; self.body.expect("body should be set") as &dyn Renderable]
+                bumpalo::vec![in arena; arena.alloc(self.body.clone().expect("body should be set")) as &dyn Renderable]
                     .into_bump_slice(),
-            late_children: bumpalo::vec![in arena; self.head as &dyn Renderable].into_bump_slice(),
+            late_children: bumpalo::vec![in arena; arena.alloc(self.head.clone()) as &dyn Renderable].into_bump_slice(),
         }
     }
 }
-impl<'re, T> Renderable<'re> for RefCell<T>
-where
-    T: Renderable<'re>,
-{
-    fn render(&self, cx: &mut Context<'re>) {
-        (*self.borrow()).render(cx);
-    }
-}
+#[derive(Clone)]
 pub struct Head<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
@@ -203,6 +198,7 @@ impl<'re> PhrasingContent<'re> for &'re str {}
 impl<'re> FlowContent<'re> for &'re mut str {}
 impl<'re> PhrasingContent<'re> for &'re mut str {}
 
+#[derive(Clone)]
 pub struct Body<'re> {
     pub children: Vec<'re, AnyElement<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
@@ -358,6 +354,7 @@ where
     }
 }
 
+#[derive(Clone, Copy)]
 struct PreRenderHookStorage<'re, This> {
     hook: Option<Hook<'re, This>>,
     arena: &'re Bump,

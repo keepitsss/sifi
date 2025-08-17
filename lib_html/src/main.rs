@@ -55,7 +55,7 @@ a:link, a:visited {
     html.render(&mut cx);
 
     let output = cx.output;
-    // drop(html);
+    drop(html);
     drop(allocator);
 
     println!("{output}");
