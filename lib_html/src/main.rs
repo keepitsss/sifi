@@ -21,14 +21,12 @@ fn main() {
         "
 body {
     background-color: #f0f0f2;
-    margin: 0;
     padding: 0;
 }
         ",
         "
 div {
     width: 600px;
-    margin: 5em auto;
     padding: 2em;
     background-color: #fdfdff;
     border-radius: 0.5em;
@@ -71,7 +69,12 @@ fn example_page(arena: &Bump) -> Body<'_> {
             .href("https://www.iana.org/domains/example")
             .child("More information..."),
     );
-    body(arena)
-        .font_sans()
-        .child(div(arena).child(header).child(text).child(link))
+    body(arena).font_sans().margin(0.).child(
+        div(arena)
+            .margin(20.)
+            .margin_x_auto()
+            .child(header)
+            .child(text)
+            .child(link),
+    )
 }

@@ -372,7 +372,6 @@ impl<'re, This> PreRenderHooks<'re> for PreRenderHookStorage<'re, This> {
         self.hook
     }
     unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&This, &mut Context) + 're) {
-        assert!(self.hook.take().is_none());
         let hook = self.arena.alloc(hook) as Hook<'re, This>;
         self.hook = Some(self.arena.alloc(|this: &This, cx: &mut Context| {
             hook(this, cx);
