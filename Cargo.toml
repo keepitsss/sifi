@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["lib_html", "lib_cli"]
+members = ["lib_html", "lib_cli", "lib_markdown"]
 
 # For minimum size:
 # RUSTFLAGS="-Zlocation-detail=none"
