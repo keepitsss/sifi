@@ -7,7 +7,7 @@ fn main() {
     let allocator = Bump::new();
 
     let mut html = html(&allocator);
-    html.body(body(&allocator).font_sans().child(example_page(&allocator)));
+    html.body(example_page(&allocator));
 
     let mut cx = Context {
         indentation: utils::Indentation::default(),
@@ -61,7 +61,7 @@ a:link, a:visited {
     std::fs::write("index.html", output).unwrap();
 }
 
-fn example_page(arena: &Bump) -> impl FlowContent {
+fn example_page(arena: &Bump) -> Body<'_> {
     let header = h1(arena).child("Example Domain");
     let text = p(arena).child(
             "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
@@ -71,5 +71,7 @@ fn example_page(arena: &Bump) -> impl FlowContent {
             .href("https://www.iana.org/domains/example")
             .child("More information..."),
     );
-    div(arena).child(header).child(text).child(link)
+    body(arena)
+        .font_sans()
+        .child(div(arena).child(header).child(text).child(link))
 }

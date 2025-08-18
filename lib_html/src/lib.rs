@@ -185,6 +185,7 @@ impl PhrasingContent for &mut str {}
 #[derive(Clone)]
 pub struct Body<'re> {
     pub classes: Classes<'re>,
+    pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
     arena: &'re Bump,
@@ -200,8 +201,18 @@ impl BuiltinHtmlElement for Body<'_> {
         self.classes.add(class);
         self
     }
-    fn id(self, _id: &str) -> Self {
-        todo!()
+    fn id(mut self, id: &str) -> Self {
+        assert!(self.id.is_none());
+        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+        assert!(!id.is_empty());
+        self.id = Some(self.arena.alloc_str(id));
+        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
+            let id = this.id.unwrap();
+            if cx.ids.contains(id) {
+                panic!("'{id}' id duplicate");
+            }
+            cx.ids.insert(cx.arena.alloc_str(id));
+        })
     }
 }
 derive_pre_render_hooks!('re, Body<'re>);
@@ -685,6 +696,7 @@ fn head(arena: &Bump) -> Head<'_> {
 pub fn body(arena: &Bump) -> Body<'_> {
     Body {
         classes: Classes::new_in(arena),
+        id: None,
         children: Vec::new_in(arena),
         pre_render_hook: PreRenderHookStorage::new_in(arena),
         arena,
