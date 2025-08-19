@@ -1,7 +1,9 @@
+#[derive(Debug)]
 struct Markdown<'a> {
     blocks: Vec<MarkdownBlock<'a>>,
 }
 
+#[derive(Debug)]
 enum MarkdownBlock<'a> {
     /// A block quote marker, consists of (a) the character > together with a following space of indentation.
     ///
@@ -22,7 +24,7 @@ enum MarkdownBlock<'a> {
     /// A line consisting of sequence of three or more matching -, _, or * characters forms a thematic break.
     LineBreak,
     /// An heading consists of a string of characters, parsed as inline content, between an opening sequence of 1–6 unescaped # characters. The opening sequence of # characters must be followed by spaces, or by the end of line. The opening # character must be preceded by one space. The raw contents of the heading are stripped of leading and trailing space before being parsed as inline content. The heading level is equal to the number of # characters in the opening sequence.
-    Heading { level: u8 },
+    Heading { level: u8, title: &'a str },
     /// A code fence is a sequence of three consecutive backtick characters (`). A code block begins with a code fence, preceded by up to three spaces of indentation.
     /// The line with the opening code fence may optionally contain some text following the code fence; this is trimmed of leading and trailing spaces and called the info string.
     /// The content of the code block consists of all subsequent lines, until a closing code fence.
@@ -39,10 +41,12 @@ enum MarkdownBlock<'a> {
     Paragraph { lines: InlineContent<'a> },
 }
 
+#[derive(Debug)]
 struct InlineContent<'a> {
     blocks: Vec<InlineBlock<'a>>,
 }
 
+#[derive(Debug)]
 enum InlineBlock<'a> {
     /// A code span begins with a backtick and ends with a backtick. The contents of the code span are the characters between these two backticks, normalized in the following ways:
     /// - Line endings are converted to spaces.
@@ -95,5 +99,83 @@ enum InlineBlock<'a> {
 }
 
 fn main() {
-    println!("Hello, world!");
+    let source = r#"
+A short one today!
+
+When using assertions heavily, a common pattern is asserting an implication:
+```zig
+assert(a implies b);
+```
+
+Most programming languages don’t have special syntax for implication, as you don’t often branch based on implications. But in my experience, you want to assert implications all the time!
+Recall that **and**, **or**, and **not** logical operators form a basis, so an implication can be expressed in terms of disjunction and negation:
+```
+A ⇒ B ⇔ ¬A ∨ B
+```
+
+This tautology is how asserting that **a** implies **b** gets expressed by default:
+```zig
+assert(!a or b);
+```
+
+I find this form hard to read, and suggest using the **if** instead:
+if (a) assert(b);
+
+From a recent code change:
+```zig
+// Before:
+assert(header_b != null or replica.commit_min == replica.op_checkpoint);
+
+// After:
+if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
+```
+"#.trim();
+    let md = parse_markdown(source);
+}
+
+fn parse_markdown(mut src: &str) -> Markdown<'_> {
+    #[derive(PartialEq)]
+    enum State {
+        None,
+    }
+    let mut state = State::None;
+    let mut blocks = Vec::new();
+    loop {
+        if src.starts_with("---") {
+            while let Some(remainder) = src.strip_prefix('-') {
+                src = remainder;
+            }
+            src = src.strip_prefix('\n').unwrap();
+            state = State::None;
+            blocks.push(MarkdownBlock::LineBreak);
+        } else if src.starts_with("***") {
+            while let Some(remainder) = src.strip_prefix('*') {
+                src = remainder;
+            }
+            src = src.strip_prefix('\n').unwrap();
+            state = State::None;
+            blocks.push(MarkdownBlock::LineBreak);
+        } else if src.starts_with("___") {
+            while let Some(remainder) = src.strip_prefix('_') {
+                src = remainder;
+            }
+            src = src.strip_prefix('\n').unwrap();
+            state = State::None;
+            blocks.push(MarkdownBlock::LineBreak);
+        } else if src.starts_with('#') {
+            let mut level = 0;
+            while let Some(remainder) = src.strip_prefix('#') {
+                level += 1;
+                src = remainder;
+            }
+            assert!(level <= 6);
+            src = src.strip_prefix(' ').unwrap();
+            let (title, remainder) = src.split_once('\n').unwrap();
+            src = remainder;
+            assert!(!title.trim().is_empty());
+            blocks.push(MarkdownBlock::Heading { level, title });
+            state = State::None;
+        }
+        todo!()
+    }
 }
