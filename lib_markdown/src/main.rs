@@ -1,3 +1,5 @@
+#![allow(unused)] // FIXME: remove this
+
 #[derive(Debug)]
 struct Markdown<'a> {
     blocks: Vec<MarkdownBlock<'a>>,
@@ -112,7 +114,7 @@ if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
 ```
 "#
     .trim();
-    let source2 = r#"
+    let _source2 = r#"
 A short one today!
 
 When using assertions heavily, a common pattern is asserting an implication:
@@ -143,7 +145,7 @@ assert(header_b != null or replica.commit_min == replica.op_checkpoint);
 if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
 ```
 "#.trim();
-    let md = parse_markdown(&source.lines().collect::<Vec<_>>());
+    let _md = parse_markdown(&source.lines().collect::<Vec<_>>());
 }
 
 fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
@@ -234,6 +236,9 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
             }
             assert!(!items.is_empty());
             blocks.push(MarkdownBlock::BulletList { items });
+        } else {
+            // let mut paragraph_lines = Vec::new();
+            todo!()
         }
         dbg!(&blocks);
         todo!()
