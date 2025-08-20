@@ -213,6 +213,17 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
                 content: content_lines.join("\n"),
             });
             lines = &lines[current_line + content_lines_count + 2..];
+        } else if line.starts_with('[') {
+            todo!("parse link reference definition");
+        } else if line.starts_with('>') {
+            let mut quote_lines = Vec::new();
+            while let Some(line) = lines[current_line + quote_lines.len()].strip_prefix("> ") {
+                quote_lines.push(line)
+            }
+            assert!(!quote_lines.is_empty());
+            let content = parse_markdown(&quote_lines);
+            blocks.push(MarkdownBlock::BlockQuote { content });
+            lines = &lines[current_line + quote_lines.len() + 1..];
         }
         dbg!(&blocks);
         todo!()
