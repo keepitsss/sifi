@@ -130,52 +130,59 @@ assert(header_b != null or replica.commit_min == replica.op_checkpoint);
 if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
 ```
 "#.trim();
-    let md = parse_markdown(source);
+    let md = parse_markdown(&source.lines().collect::<Vec<_>>());
 }
 
-fn parse_markdown(mut src: &str) -> Markdown<'_> {
-    #[derive(PartialEq)]
+fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
+    #[derive(PartialEq, Debug)]
     enum State {
         None,
     }
     let mut state = State::None;
     let mut blocks = Vec::new();
     loop {
-        if src.starts_with("---") {
-            while let Some(remainder) = src.strip_prefix('-') {
-                src = remainder;
+        if lines.is_empty() {
+            todo!();
+        }
+        let mut line = lines[0];
+        if line.starts_with("---") {
+            while let Some(remainder) = line.strip_prefix('-') {
+                line = remainder;
             }
-            src = src.strip_prefix('\n').unwrap();
+            assert!(line.is_empty());
             state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-        } else if src.starts_with("***") {
-            while let Some(remainder) = src.strip_prefix('*') {
-                src = remainder;
+            lines = &lines[1..];
+        } else if line.starts_with("***") {
+            while let Some(remainder) = line.strip_prefix('*') {
+                line = remainder;
             }
-            src = src.strip_prefix('\n').unwrap();
+            assert!(line.is_empty());
             state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-        } else if src.starts_with("___") {
-            while let Some(remainder) = src.strip_prefix('_') {
-                src = remainder;
+            lines = &lines[1..];
+        } else if line.starts_with("___") {
+            while let Some(remainder) = line.strip_prefix('_') {
+                line = remainder;
             }
-            src = src.strip_prefix('\n').unwrap();
+            assert!(line.is_empty());
             state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-        } else if src.starts_with('#') {
+            lines = &lines[1..];
+        } else if line.starts_with('#') {
             let mut level = 0;
-            while let Some(remainder) = src.strip_prefix('#') {
+            while let Some(remainder) = line.strip_prefix('#') {
                 level += 1;
-                src = remainder;
+                line = remainder;
             }
             assert!(level <= 6);
-            src = src.strip_prefix(' ').unwrap();
-            let (title, remainder) = src.split_once('\n').unwrap();
-            src = remainder;
+            let title = line.strip_prefix(' ').unwrap().trim();
             assert!(!title.trim().is_empty());
             blocks.push(MarkdownBlock::Heading { level, title });
             state = State::None;
+            lines = &lines[1..];
         }
+        dbg!(&state, &blocks);
         todo!()
     }
 }
