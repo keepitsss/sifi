@@ -29,7 +29,10 @@ enum MarkdownBlock<'a> {
     /// The line with the opening code fence may optionally contain some text following the code fence; this is trimmed of leading and trailing spaces and called the info string.
     /// The content of the code block consists of all subsequent lines, until a closing code fence.
     /// The content of a code fence is treated as literal text, not parsed as inlines.
-    CodeBlock { content: &'a str },
+    CodeBlock {
+        metadata: Option<&'a str>,
+        content: String,
+    },
     /// A link reference definition consists of a link label, followed by a colon (:), one space, link destination, and an optional link title, which if it is present must be separated from the link destination by spaces. No further character may occur.
     /// A link reference definition does not correspond to a structural element of a document. Instead, it defines a label which can be used in reference links and reference-style images elsewhere in the document. Link reference definitions can come either before or after the links that use them.
     LinkReferenceDefinition {
@@ -100,6 +103,16 @@ enum InlineBlock<'a> {
 
 fn main() {
     let source = r#"
+```zig
+// Before:
+assert(header_b != null or replica.commit_min == replica.op_checkpoint);
+
+// After:
+if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
+```
+"#
+    .trim();
+    let source2 = r#"
 A short one today!
 
 When using assertions heavily, a common pattern is asserting an implication:
@@ -138,37 +151,34 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
     enum State {
         None,
     }
-    let mut state = State::None;
     let mut blocks = Vec::new();
+    let current_line = 0;
     loop {
         if lines.is_empty() {
             todo!();
         }
-        let mut line = lines[0];
+        let mut line = lines[current_line];
         if line.starts_with("---") {
             while let Some(remainder) = line.strip_prefix('-') {
                 line = remainder;
             }
             assert!(line.is_empty());
-            state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[1..];
+            lines = &lines[current_line + 1..];
         } else if line.starts_with("***") {
             while let Some(remainder) = line.strip_prefix('*') {
                 line = remainder;
             }
             assert!(line.is_empty());
-            state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[1..];
+            lines = &lines[current_line + 1..];
         } else if line.starts_with("___") {
             while let Some(remainder) = line.strip_prefix('_') {
                 line = remainder;
             }
             assert!(line.is_empty());
-            state = State::None;
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[1..];
+            lines = &lines[current_line + 1..];
         } else if line.starts_with('#') {
             let mut level = 0;
             while let Some(remainder) = line.strip_prefix('#') {
@@ -179,10 +189,32 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
             let title = line.strip_prefix(' ').unwrap().trim();
             assert!(!title.trim().is_empty());
             blocks.push(MarkdownBlock::Heading { level, title });
-            state = State::None;
-            lines = &lines[1..];
+            lines = &lines[current_line + 1..];
+        } else if line.starts_with("```") {
+            let metadata = line.strip_prefix("```").unwrap().trim();
+            let metadata = if metadata.is_empty() {
+                None
+            } else {
+                Some(metadata)
+            };
+            let mut content_lines_count = current_line;
+            while !lines[current_line + 1 + content_lines_count].starts_with("```") {
+                content_lines_count += 1;
+            }
+            let content_lines = &lines[current_line + 1..current_line + 1 + content_lines_count];
+            assert!(
+                lines[current_line + 1 + content_lines_count]
+                    .strip_prefix("```")
+                    .unwrap()
+                    .is_empty()
+            );
+            blocks.push(MarkdownBlock::CodeBlock {
+                metadata,
+                content: content_lines.join("\n"),
+            });
+            lines = &lines[current_line + content_lines_count + 2..];
         }
-        dbg!(&state, &blocks);
+        dbg!(&blocks);
         todo!()
     }
 }
