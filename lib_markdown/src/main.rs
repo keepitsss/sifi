@@ -147,38 +147,33 @@ if (header_b == null) assert(replica.commit_min == replica.op_checkpoint);
 }
 
 fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
-    #[derive(PartialEq, Debug)]
-    enum State {
-        None,
-    }
     let mut blocks = Vec::new();
-    let current_line = 0;
     loop {
         if lines.is_empty() {
             todo!();
         }
-        let mut line = lines[current_line];
+        let mut line = lines[0];
         if line.starts_with("---") {
             while let Some(remainder) = line.strip_prefix('-') {
                 line = remainder;
             }
             assert!(line.is_empty());
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[current_line + 1..];
+            lines = &lines[1..];
         } else if line.starts_with("***") {
             while let Some(remainder) = line.strip_prefix('*') {
                 line = remainder;
             }
             assert!(line.is_empty());
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[current_line + 1..];
+            lines = &lines[1..];
         } else if line.starts_with("___") {
             while let Some(remainder) = line.strip_prefix('_') {
                 line = remainder;
             }
             assert!(line.is_empty());
             blocks.push(MarkdownBlock::LineBreak);
-            lines = &lines[current_line + 1..];
+            lines = &lines[1..];
         } else if line.starts_with('#') {
             let mut level = 0;
             while let Some(remainder) = line.strip_prefix('#') {
@@ -189,7 +184,7 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
             let title = line.strip_prefix(' ').unwrap().trim();
             assert!(!title.trim().is_empty());
             blocks.push(MarkdownBlock::Heading { level, title });
-            lines = &lines[current_line + 1..];
+            lines = &lines[1..];
         } else if line.starts_with("```") {
             let metadata = line.strip_prefix("```").unwrap().trim();
             let metadata = if metadata.is_empty() {
@@ -197,13 +192,13 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
             } else {
                 Some(metadata)
             };
-            let mut content_lines_count = current_line;
-            while !lines[current_line + 1 + content_lines_count].starts_with("```") {
+            let mut content_lines_count = 0;
+            while !lines[content_lines_count + 1].starts_with("```") {
                 content_lines_count += 1;
             }
-            let content_lines = &lines[current_line + 1..current_line + 1 + content_lines_count];
+            let content_lines = &lines[1..=content_lines_count];
             assert!(
-                lines[current_line + 1 + content_lines_count]
+                lines[content_lines_count + 1]
                     .strip_prefix("```")
                     .unwrap()
                     .is_empty()
@@ -212,18 +207,33 @@ fn parse_markdown<'a>(mut lines: &[&'a str]) -> Markdown<'a> {
                 metadata,
                 content: content_lines.join("\n"),
             });
-            lines = &lines[current_line + content_lines_count + 2..];
+            lines = &lines[content_lines_count + 2..];
         } else if line.starts_with('[') {
             todo!("parse link reference definition");
         } else if line.starts_with('>') {
             let mut quote_lines = Vec::new();
-            while let Some(line) = lines[current_line + quote_lines.len()].strip_prefix("> ") {
+            while let Some(line) = lines[quote_lines.len()].strip_prefix("> ") {
                 quote_lines.push(line)
             }
             assert!(!quote_lines.is_empty());
             let content = parse_markdown(&quote_lines);
             blocks.push(MarkdownBlock::BlockQuote { content });
-            lines = &lines[current_line + quote_lines.len() + 1..];
+            lines = &lines[quote_lines.len()..];
+        } else if line.starts_with('-') {
+            // FIXME: '*' and '+' should also work
+            let mut items = Vec::new();
+            while let Some(item_start) = lines[1].strip_prefix('-') {
+                let item_start = item_start.strip_prefix(' ').unwrap();
+                let mut item_lines = Vec::new();
+                item_lines.push(item_start);
+                while let Some(item_line) = lines[item_lines.len() + 1].strip_prefix("  ") {
+                    item_lines.push(item_line);
+                }
+                lines = &lines[item_lines.len()..];
+                items.push(parse_markdown(&item_lines));
+            }
+            assert!(!items.is_empty());
+            blocks.push(MarkdownBlock::BulletList { items });
         }
         dbg!(&blocks);
         todo!()
