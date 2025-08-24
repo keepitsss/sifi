@@ -97,7 +97,6 @@ pub trait BuiltinHtmlElement: Sized {
     }
     fn id(self, id: &str) -> Self;
 }
-pub mod tailwind;
 
 #[derive(Clone)]
 pub struct Html<'re> {
