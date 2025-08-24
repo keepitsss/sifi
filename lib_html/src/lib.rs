@@ -97,6 +97,31 @@ pub trait BuiltinHtmlElement: Sized {
     }
     fn id(self, id: &str) -> Self;
 }
+macro_rules! derive_class {
+    () => {
+        fn class(mut self, class: &str) -> Self {
+            self.classes.add(class);
+            self
+        }
+    };
+}
+macro_rules! derive_id {
+    () => {
+        fn id(mut self, id: &str) -> Self {
+            assert!(self.id.is_none());
+            assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
+            assert!(!id.is_empty());
+            self.id = Some(self.arena.alloc_str(id));
+            self.with_pre_render_hook(|this, cx| {
+                let id = this.id.unwrap();
+                if cx.ids.contains(id) {
+                    panic!("'{id}' id duplicate");
+                }
+                cx.ids.insert(cx.arena.alloc_str(id));
+            })
+        }
+    };
+}
 
 #[derive(Clone)]
 pub struct Html<'re> {
@@ -196,23 +221,8 @@ impl<'re> Body<'re> {
     }
 }
 impl BuiltinHtmlElement for Body<'_> {
-    fn class(mut self, class: &str) -> Self {
-        self.classes.add(class);
-        self
-    }
-    fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
+    derive_class!();
+    derive_id!();
 }
 derive_pre_render_hooks!('re, Body<'re>);
 impl<'re> SimpleElement<'re> for Body<'re> {
@@ -416,23 +426,8 @@ pub struct Div<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl BuiltinHtmlElement for Div<'_> {
-    fn class(mut self, class: &str) -> Self {
-        self.classes.add(class);
-        self
-    }
-    fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
+    derive_class!();
+    derive_id!();
 }
 derive_pre_render_hooks!('re, Div<'re>);
 impl FlowContent for Div<'_> {}
@@ -471,23 +466,8 @@ pub struct Heading1<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl BuiltinHtmlElement for Heading1<'_> {
-    fn class(mut self, class: &str) -> Self {
-        self.classes.add(class);
-        self
-    }
-    fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
+    derive_class!();
+    derive_id!();
 }
 derive_pre_render_hooks!('re, Heading1<'re>);
 impl FlowContent for Heading1<'_> {}
@@ -527,23 +507,8 @@ pub struct Paragraph<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl BuiltinHtmlElement for Paragraph<'_> {
-    fn class(mut self, class: &str) -> Self {
-        self.classes.add(class);
-        self
-    }
-    fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
+    derive_class!();
+    derive_id!();
 }
 derive_pre_render_hooks!('re, Paragraph<'re>);
 impl FlowContent for Paragraph<'_> {}
@@ -586,23 +551,8 @@ pub struct Link<'re> {
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 impl BuiltinHtmlElement for Link<'_> {
-    fn class(mut self, class: &str) -> Self {
-        self.classes.add(class);
-        self
-    }
-    fn id(mut self, id: &str) -> Self {
-        assert!(self.id.is_none());
-        assert!(id.chars().all(|c| !c.is_ascii_whitespace()));
-        assert!(!id.is_empty());
-        self.id = Some(self.arena.alloc_str(id));
-        self.with_pre_render_hook(|this: &Self, cx: &mut Context| {
-            let id = this.id.unwrap();
-            if cx.ids.contains(id) {
-                panic!("'{id}' id duplicate");
-            }
-            cx.ids.insert(cx.arena.alloc_str(id));
-        })
-    }
+    derive_class!();
+    derive_id!();
 }
 derive_pre_render_hooks!('re, Link<'re>);
 impl FlowContent for Link<'_> {}
