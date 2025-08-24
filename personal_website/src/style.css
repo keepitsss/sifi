@@ -1,0 +1,28 @@
+body {
+    color: var(--fg);
+    background-color: var(--bg);
+}
+::selection {
+    color: var(--selection-fg);
+    background-color: var(--selection-bg);
+}
+a {
+    color: unset;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --fg: #000;
+        --bg: #fff;
+        --selection-fg: #000;
+        --selection-bg: #e6e6e6;
+    }
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --fg: #fff;
+        --bg: #000;
+        --selection-fg: #000;
+        --selection-bg: #fff;
+    }
+}

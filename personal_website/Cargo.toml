@@ -1,0 +1,10 @@
+[package]
+name = "personal_website"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.4"
+tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
+lib_html.workspace = true
+bumpalo = "3.19.0"
