@@ -458,27 +458,28 @@ impl<'re> SimpleElement<'re> for Div<'re> {
     }
 }
 
-pub struct Heading1<'re> {
+pub struct Heading<'re> {
+    pub level: u8,
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     arena: &'re Bump,
     pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
-impl BuiltinHtmlElement for Heading1<'_> {
+impl BuiltinHtmlElement for Heading<'_> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Heading1<'re>);
-impl FlowContent for Heading1<'_> {}
-impl HeadingContent for Heading1<'_> {}
-impl<'re> Heading1<'re> {
+derive_pre_render_hooks!('re, Heading<'re>);
+impl FlowContent for Heading<'_> {}
+impl HeadingContent for Heading<'_> {}
+impl<'re> Heading<'re> {
     pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }
 }
-impl<'re> SimpleElement<'re> for Heading1<'re> {
+impl<'re> SimpleElement<'re> for Heading<'re> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -491,7 +492,7 @@ impl<'re> SimpleElement<'re> for Heading1<'re> {
             attrs.push(attr);
         }
         GenericHtmlElement {
-            name: self.arena.alloc("h1"),
+            name: self.arena.alloc(format!("h{}", self.level)),
             attributes: attrs.into_bump_slice(),
             children: strip_anyelement(self.arena, &self.children),
             late_children: &[],
@@ -660,8 +661,10 @@ pub fn div(arena: &Bump) -> Div<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
-pub fn h1(arena: &Bump) -> Heading1<'_> {
-    Heading1 {
+pub fn h(level: u8, arena: &Bump) -> Heading<'_> {
+    assert!((1..=6).contains(&level));
+    Heading {
+        level,
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),

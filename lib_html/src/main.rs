@@ -32,7 +32,7 @@ fn main() {
 }
 
 fn example_page(arena: &Bump) -> Body<'_> {
-    let header = h1(arena).child("Example Domain");
+    let header = h(1, arena).child("Example Domain");
     let text = p(arena).child(
             "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
         );
