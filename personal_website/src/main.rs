@@ -20,6 +20,10 @@ async fn main() {
     // run our app with hyper, listening globally on port 3000
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
 
+    // TODO: how it works?
+    //
+    // Especially how work tls and hyper?
+
     let tls_acceptor = TlsAcceptor::from(Arc::new(
         ServerConfig::builder()
             .with_no_client_auth()
@@ -48,7 +52,6 @@ async fn main() {
             }
         });
     }
-    // axum::serve(tcp_listener, app).await.unwrap();
 }
 
 static GLOBAL_STYLES: &str = include_str!("style.css");
