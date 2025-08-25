@@ -635,6 +635,10 @@ pub fn html(arena: &Bump) -> Html<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
         arena,
     }
+    .with_pre_render_hook(|_this, cx| {
+        assert!(cx.output.is_empty());
+        cx.output.push_str("<!DOCTYPE html>");
+    })
 }
 fn head(arena: &Bump) -> Head<'_> {
     Head {
