@@ -231,3 +231,20 @@ pub fn section(arena: &Bump) -> Section<'_> {
         pre_render_hook,
     }
 }
+
+/// The nav element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
+pub fn nav(arena: &Bump) -> Navigation<'_> {
+    // # Safety
+    // Needed for palpable conent.
+    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
+    pre_render_hook.add_pre_render_hook(|this: &Navigation, _cx| {
+        assert!(!this.children.is_empty());
+    });
+    Navigation {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook,
+    }
+}
