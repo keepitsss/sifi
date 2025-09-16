@@ -350,6 +350,9 @@ impl BuiltinHtmlElement for Heading<'_> {
 derive_pre_render_hooks!('re, Heading<'re>);
 impl FlowContent for Heading<'_> {}
 impl HeadingContent for Heading<'_> {}
+// # Safety
+// Pre render hook added on creation to check that article has at least on child.
+unsafe impl PalpableConent for Heading<'_> {}
 impl<'re> Heading<'re> {
     pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));

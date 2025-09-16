@@ -165,13 +165,17 @@ pub fn div(arena: &Bump) -> Div<'_> {
 }
 pub fn h(level: u8, arena: &Bump) -> Heading<'_> {
     assert!((1..=6).contains(&level));
+    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
+    pre_render_hook.add_pre_render_hook(|this: &Heading, _cx| {
+        assert!(!this.children.is_empty());
+    });
     Heading {
         level,
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        pre_render_hook,
     }
 }
 pub fn p(arena: &Bump) -> Paragraph<'_> {
