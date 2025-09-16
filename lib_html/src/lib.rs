@@ -231,7 +231,6 @@ pub fn section(arena: &Bump) -> Section<'_> {
         pre_render_hook,
     }
 }
-
 /// The nav element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
 pub fn nav(arena: &Bump) -> Navigation<'_> {
     // # Safety
@@ -241,6 +240,24 @@ pub fn nav(arena: &Bump) -> Navigation<'_> {
         assert!(!this.children.is_empty());
     });
     Navigation {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook,
+    }
+}
+/// The aside element represents a section of a page that consists of content that is tangentially related to the content around the aside element, and which could be considered separate from that content. Such sections are often represented as sidebars in printed typography.
+///
+/// The element can be used for typographical effects like pull quotes or sidebars, for advertising, for groups of nav elements, and for other content that is considered separate from the main content of the page.
+pub fn aside(arena: &Bump) -> Aside<'_> {
+    // # Safety
+    // Needed for palpable conent.
+    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
+    pre_render_hook.add_pre_render_hook(|this: &Aside, _cx| {
+        assert!(!this.children.is_empty());
+    });
+    Aside {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
