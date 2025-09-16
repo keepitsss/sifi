@@ -215,3 +215,19 @@ pub fn article(arena: &Bump) -> Article<'_> {
         pre_render_hook,
     }
 }
+/// The section element represents a generic section of a document or application. A section, in this context, is a thematic grouping of content, typically with a heading.
+pub fn section(arena: &Bump) -> Section<'_> {
+    // # Safety
+    // Needed for palpable conent.
+    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
+    pre_render_hook.add_pre_render_hook(|this: &Section, _cx| {
+        assert!(!this.children.is_empty());
+    });
+    Section {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook,
+    }
+}
