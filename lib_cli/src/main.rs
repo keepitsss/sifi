@@ -31,9 +31,17 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-use derive_more::From;
+macro_rules! derive_trivial_from {
+    ($name:ident, $type:ty) => {
+        impl ::std::convert::From<$type> for $name {
+            fn from(value: $type) -> $name {
+                $name(value)
+            }
+        }
+    };
+}
 
-#[derive(From)]
+derive_trivial_from!(FlagHi, bool);
 struct FlagHi(bool);
 impl utils::FlagBool for FlagHi {
     const NAME: &str = "--hi";
@@ -41,14 +49,14 @@ impl utils::FlagBool for FlagHi {
     const DESCRIPTION: &str = "hello world flag";
 }
 
-#[derive(From)]
+derive_trivial_from!(FlagMy, bool);
 struct FlagMy(bool);
 impl utils::FlagBool for FlagMy {
     const NAME: &str = "--my";
     const DESCRIPTION: &str = "meeee";
 }
 
-#[derive(From)]
+derive_trivial_from!(FlagWorld, bool);
 struct FlagWorld(bool);
 impl utils::FlagBool for FlagWorld {
     const NAME: &str = "--world";

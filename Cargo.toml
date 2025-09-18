@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["lib_html", "lib_cli", "lib_markdown", "personal_website"]
+members = ["lib_html", "lib_cli", "lib_markdown"]
 
 [workspace.dependencies]
 lib_html = { path = "lib_html" }
