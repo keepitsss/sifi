@@ -86,16 +86,51 @@ fn main() -> anyhow::Result<()> {
             }
             b'{' => {
                 let new_parent = tree.len();
-                let meta = ObjectMeta {
-                    name_or_index: NameOrIndex::Index(0),
-                    parent,
-                    ty: ObjectType::Structure,
-                    source_start: cursor,
-                    source_len: 0,
-                    next: prev,
+
+                let meta = if let Some((name_start, name_len)) = name {
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Name {
+                            start: name_start,
+                            len: name_len,
+                        },
+                        parent,
+                        ty: ObjectType::Structure,
+                        source_start: cursor,
+                        source_len: 0,
+                        next: None,
+                    }
+                } else if let ObjectMeta {
+                    ty: ObjectType::Array,
+                    name_or_index,
+                    ..
+                } = &mut tree[parent.unwrap().get()]
+                {
+                    let NameOrIndex::Index(index) = name_or_index else {
+                        unreachable!()
+                    };
+                    let my_index = *index;
+                    *index += 1;
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Index(my_index),
+                        parent,
+                        ty: ObjectType::Structure,
+                        source_start: cursor,
+                        source_len: 0,
+                        next: None,
+                    }
+                } else {
+                    dbg!(tree[parent.unwrap().get()]);
+                    unreachable!()
                 };
+                let new_index = NonZeroUsize::new(tree.len()).unwrap();
                 tree.push(meta);
+                if let Some(prev) = prev {
+                    tree[prev.get()].next = Some(new_index);
+                }
+                prev = Some(new_index);
+                name = None;
                 parent = Some(NonZeroUsize::new(new_parent).unwrap());
+
                 cursor += 1;
             }
             b'"' => {
@@ -105,7 +140,9 @@ fn main() -> anyhow::Result<()> {
                     .unwrap()
                     + 2;
                 cursor += len - 1;
-                dbg!(str::from_utf8(&content[start..start + len]).unwrap());
+                // dbg!(str::from_utf8(&content[start..start + len]).unwrap());
+                // dbg!(tree[parent.unwrap().get()]);
+                // dbg!(name);
                 if let Some((name_start, name_len)) = name {
                     let meta = ObjectMeta {
                         name_or_index: NameOrIndex::Name {
@@ -238,12 +275,75 @@ fn main() -> anyhow::Result<()> {
                     cursor += 1;
                 }
             }
+            b'-' | b'0'..=b'9' => {
+                let start = cursor;
+                cursor += 1;
+                while content[cursor].is_ascii_digit() {
+                    cursor += 1;
+                }
+                if content[cursor] == b'.' {
+                    cursor += 1;
+                    while content[cursor].is_ascii_digit() {
+                        cursor += 1;
+                    }
+                }
+                let meta = if let Some((name_start, name_len)) = name {
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Name {
+                            start: name_start,
+                            len: name_len,
+                        },
+                        parent,
+                        ty: ObjectType::Number,
+                        source_start: start,
+                        source_len: cursor - start,
+                        next: None,
+                    }
+                } else if let ObjectMeta {
+                    ty: ObjectType::Array,
+                    name_or_index,
+                    ..
+                } = &mut tree[parent.unwrap().get()]
+                {
+                    let NameOrIndex::Index(index) = name_or_index else {
+                        unreachable!()
+                    };
+                    let my_index = *index;
+                    *index += 1;
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Index(my_index),
+                        parent,
+                        ty: ObjectType::Number,
+                        source_start: start,
+                        source_len: cursor - start,
+                        next: None,
+                    }
+                } else {
+                    unreachable!()
+                };
+                let new_index = NonZeroUsize::new(tree.len()).unwrap();
+                tree.push(meta);
+                if let Some(prev) = prev {
+                    tree[prev.get()].next = Some(new_index);
+                }
+                prev = Some(new_index);
+                name = None;
+
+                if content[cursor] == b',' {
+                    cursor += 1;
+                }
+                while content[cursor] == b' ' {
+                    cursor += 1;
+                }
+            }
             c => {
                 todo!(
                     "unknown character '{}' in symbols '{}'",
                     c as char,
-                    str::from_utf8(&content[tree[parent.unwrap().get()].source_start..=cursor])
-                        .unwrap()
+                    str::from_utf8(
+                        &content[tree[parent.unwrap().get()].source_start..=cursor + 10]
+                    )
+                    .unwrap()
                 )
             }
         }
