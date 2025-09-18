@@ -112,6 +112,42 @@ fn main() -> anyhow::Result<()> {
 
                 cursor += 1;
             }
+            b']' => {
+                cursor += 1;
+
+                let parent_ref_mut = &mut tree[parent.unwrap().get()];
+                parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
+                match parent_ref_mut.name_or_index {
+                    NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
+                    NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
+                }
+                parent = parent_ref_mut.parent;
+
+                if content[cursor] == b',' {
+                    cursor += 1;
+                }
+                while content[cursor] == b' ' {
+                    cursor += 1;
+                }
+            }
+            b'}' => {
+                cursor += 1;
+
+                let parent_ref_mut = &mut tree[parent.unwrap().get()];
+                parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
+                match parent_ref_mut.name_or_index {
+                    NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
+                    NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
+                }
+                parent = parent_ref_mut.parent;
+
+                if content[cursor] == b',' {
+                    cursor += 1;
+                }
+                while content[cursor] == b' ' {
+                    cursor += 1;
+                }
+            }
             b'"' => {
                 let start = cursor;
                 cursor += 1;
@@ -215,14 +251,14 @@ fn main() -> anyhow::Result<()> {
                 )
             }
         }
-        if cursor > 10000 {
+        if cursor > 20000 {
             println!(
-                "cursor: {}, elapsed: {}, micros per byte: {}",
+                "cursor: {}, elapsed: {}ms, micros per byte: {}",
                 cursor,
                 application_start.elapsed().as_millis(),
                 application_start.elapsed().as_secs_f64() * 1_000_000. / cursor as f64,
             );
-            dbg!(&tree[1..10]);
+            // dbg!(&tree[1..10]);
             break;
         }
     }
