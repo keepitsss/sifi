@@ -27,8 +27,8 @@ struct ObjectMeta {
     name_or_index: NameOrIndex,
     parent: Option<NonZeroU64>,
     ty: ObjectType,
-    source_start: u64,
-    source_len: u64,
+    source_start: usize,
+    source_len: usize,
     next: Option<NonZeroU64>,
 }
 
@@ -58,9 +58,10 @@ fn main() -> anyhow::Result<()> {
         }
     }); // So indexes start from 1
 
+    let application_start = Instant::now();
     let mut cursor = 0;
     let mut parent = None;
-    let mut name: Option<(u64, u32)> = None;
+    let mut name: Option<(u64, NonZeroU32)> = None;
     let mut prev = None;
     loop {
         if cursor == content.len() {
@@ -74,14 +75,13 @@ fn main() -> anyhow::Result<()> {
                     name_or_index: NameOrIndex::Index(0),
                     parent,
                     ty: ObjectType::Array,
-                    source_start: cursor as u64,
+                    source_start: cursor,
                     source_len: 0,
                     next: prev,
                 };
                 tree.push(meta);
                 parent = Some(NonZeroU64::new(new_parent).unwrap());
                 cursor += 1;
-                dbg!(("array started", &tree[1..]));
             }
             b'{' => {
                 let new_parent = tree.len() as u64;
@@ -89,19 +89,96 @@ fn main() -> anyhow::Result<()> {
                     name_or_index: NameOrIndex::Index(0),
                     parent,
                     ty: ObjectType::Structure,
-                    source_start: cursor as u64,
+                    source_start: cursor,
                     source_len: 0,
                     next: prev,
                 };
                 tree.push(meta);
                 parent = Some(NonZeroU64::new(new_parent).unwrap());
                 cursor += 1;
-                dbg!(("structure started", &tree[1..]));
             }
             b'"' => {
-                todo!()
+                let start = cursor;
+                cursor += 1;
+                let len = find_escaped_string_length(str::from_utf8(&content[cursor..]).unwrap())
+                    .unwrap()
+                    + 1;
+                cursor += len;
+                dbg!(str::from_utf8(&content[start..start + len]).unwrap());
+                if let Some((name_start, name_len)) = name {
+                    let meta = ObjectMeta {
+                        name_or_index: NameOrIndex::Name {
+                            start: name_start,
+                            len: name_len,
+                        },
+                        parent,
+                        ty: ObjectType::String,
+                        source_start: start,
+                        source_len: len,
+                        next: None,
+                    };
+                    let new_index = NonZeroU64::new(tree.len() as u64).unwrap();
+                    tree.push(meta);
+                    if let Some(prev) = prev {
+                        tree[usize::try_from(u64::from(prev)).unwrap()].next = Some(new_index);
+                    }
+                    prev = Some(new_index);
+                    name = None;
+                } else {
+                    match &mut tree[usize::try_from(parent.unwrap().get()).unwrap()] {
+                        ObjectMeta {
+                            ty: ObjectType::Structure,
+                            ..
+                        } => {
+                            name = Some((
+                                start as u64,
+                                NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
+                            ));
+                        }
+                        ObjectMeta {
+                            ty: ObjectType::Array,
+                            name_or_index,
+                            ..
+                        } => {
+                            let NameOrIndex::Index(index) = name_or_index else {
+                                unreachable!();
+                            };
+                            let my_index = *index;
+                            *index += 1;
+
+                            let meta = ObjectMeta {
+                                name_or_index: NameOrIndex::Index(my_index),
+                                parent,
+                                ty: ObjectType::String,
+                                source_start: start,
+                                source_len: len,
+                                next: None,
+                            };
+
+                            let new_index = NonZeroU64::new(tree.len() as u64).unwrap();
+                            tree.push(meta);
+
+                            if let Some(prev) = prev {
+                                tree[usize::try_from(u64::from(prev)).unwrap()].next =
+                                    Some(new_index);
+                            }
+                            prev = Some(new_index);
+                        }
+                        _ => unreachable!(),
+                    }
+                }
             }
             c => todo!("unknown character '{}'", c as char),
+        }
+        if cursor > 10000 {
+            println!(
+                "cursor: {}, elapsed: {}, micros per byte: {}",
+                cursor,
+                application_start.elapsed().as_millis(),
+                application_start.elapsed().as_secs_f64() * 1_000_000. / cursor as f64,
+            );
+            dbg!(&tree[1..10]);
+            break;
         }
     }
 
@@ -110,7 +187,7 @@ fn main() -> anyhow::Result<()> {
 
 /// Gets escaped string without opening quote and returns bytes count to closing quote(including it)
 /// Returns None if closing quote not found
-fn find_escaped_string_end(input: &str) -> Option<usize> {
+fn find_escaped_string_length(input: &str) -> Option<usize> {
     let mut last_backslash = false;
     for (index, &byte) in input.as_bytes().iter().enumerate() {
         match byte {
