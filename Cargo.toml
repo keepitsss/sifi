@@ -1,9 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["lib_html", "lib_cli", "lib_markdown"]
+members = ["lib_html", "lib_cli", "lib_markdown", "json_viewer"]
 
 [workspace.dependencies]
 lib_html = { path = "lib_html" }
+anyhow = "1.0.98"
 
 # For minimum size:
 # RUSTFLAGS="-Zlocation-detail=none"
