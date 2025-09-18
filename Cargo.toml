@@ -6,6 +6,8 @@ members = ["lib_html", "lib_cli", "lib_markdown", "json_viewer"]
 lib_html = { path = "lib_html" }
 anyhow = "1.0.98"
 
+[profile.release]
+debug = true
 # For minimum size:
 # RUSTFLAGS="-Zlocation-detail=none"
 # ( RUSTFLAGS="-Zlocation-detail=none -Zfmt-debug=none" )

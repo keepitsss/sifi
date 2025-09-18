@@ -1,2 +1,5 @@
 index.html
 secrets
+
+perf.data*
+flamegraph.svg

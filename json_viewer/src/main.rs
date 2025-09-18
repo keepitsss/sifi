@@ -1,7 +1,4 @@
-use std::{
-    num::{NonZeroU32, NonZeroUsize},
-    time::Instant,
-};
+use std::{num::NonZeroU32, time::Instant};
 
 macro_rules! measured {
     ($name:literal, $code:expr) => {{
@@ -28,11 +25,11 @@ enum ObjectType {
 #[derive(Debug, Clone, Copy)]
 struct ObjectMeta {
     name_or_index: NameOrIndex,
-    parent: Option<NonZeroUsize>,
+    parent: Option<usize>,
     ty: ObjectType,
     source_start: usize,
     source_len: usize,
-    next: Option<NonZeroUsize>,
+    next: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -56,28 +53,21 @@ fn main() -> anyhow::Result<()> {
             .into_bytes()
             .leak()
     });
-    let mut tree: Vec<ObjectMeta> = Vec::new();
-    tree.push({
-        // FIXME: use zeroed value
-        ObjectMeta {
-            name_or_index: NameOrIndex::Index(0),
-            parent: None,
-            ty: ObjectType::Bool,
-            source_start: 0,
-            source_len: 0,
-            next: None,
-        }
-    }); // So indexes start from 1
+    let structure = measured!("parsing structure", parse_json_structure(content));
+    println!("objects: {}", structure.len() - 1);
+    Ok(())
+}
 
-    let application_start = Instant::now();
+fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
+    let mut tree: Vec<ObjectMeta> = Vec::new();
+
     let mut cursor = 0;
     let mut parent = None;
     let mut context = Context::TopLevel;
     let mut prev = None;
     loop {
         if cursor == content.len() {
-            eprintln!("TODO: file ending");
-            break;
+            return tree;
         }
         match content[cursor] {
             b'[' => {
@@ -115,7 +105,7 @@ fn main() -> anyhow::Result<()> {
             b']' => {
                 cursor += 1;
 
-                let parent_ref_mut = &mut tree[parent.unwrap().get()];
+                let parent_ref_mut = &mut tree[parent.unwrap()];
                 parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
@@ -123,17 +113,17 @@ fn main() -> anyhow::Result<()> {
                 }
                 parent = parent_ref_mut.parent;
 
-                if content[cursor] == b',' {
+                if content.get(cursor) == Some(&b',') {
                     cursor += 1;
                 }
-                while content[cursor] == b' ' {
+                while content.get(cursor) == Some(&b' ') {
                     cursor += 1;
                 }
             }
             b'}' => {
                 cursor += 1;
 
-                let parent_ref_mut = &mut tree[parent.unwrap().get()];
+                let parent_ref_mut = &mut tree[parent.unwrap()];
                 parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
@@ -141,18 +131,20 @@ fn main() -> anyhow::Result<()> {
                 }
                 parent = parent_ref_mut.parent;
 
-                if content[cursor] == b',' {
+                if content.get(cursor) == Some(&b',') {
                     cursor += 1;
                 }
-                while content[cursor] == b' ' {
+                while content.get(cursor) == Some(&b' ') {
                     cursor += 1;
                 }
             }
             b'"' => {
                 let start = cursor;
                 cursor += 1;
-                let len = find_escaped_string_length(str::from_utf8(&content[cursor..]).unwrap())
-                    .unwrap()
+                let len = find_escaped_string_length(unsafe {
+                    str::from_utf8_unchecked(&content[cursor..])
+                })
+                .unwrap()
                     + 2;
                 cursor += len - 1;
 
@@ -244,37 +236,23 @@ fn main() -> anyhow::Result<()> {
                 todo!(
                     "unknown character '{}' in symbols '{}'",
                     c as char,
-                    str::from_utf8(
-                        &content[tree[parent.unwrap().get()].source_start..=cursor + 10]
-                    )
-                    .unwrap()
+                    str::from_utf8(&content[tree[parent.unwrap()].source_start..=cursor + 10])
+                        .unwrap()
                 )
             }
         }
-        if cursor > 20000 {
-            println!(
-                "cursor: {}, elapsed: {}ms, micros per byte: {}",
-                cursor,
-                application_start.elapsed().as_millis(),
-                application_start.elapsed().as_secs_f64() * 1_000_000. / cursor as f64,
-            );
-            // dbg!(&tree[1..10]);
-            break;
-        }
     }
-
-    Ok(())
 }
 
 fn push_object_meta(
     tree: &mut Vec<ObjectMeta>,
-    prev: &mut Option<std::num::NonZero<usize>>,
+    prev: &mut Option<usize>,
     meta: ObjectMeta,
-) -> std::num::NonZero<usize> {
-    let new_index = NonZeroUsize::new(tree.len()).unwrap();
+) -> usize {
+    let new_index = tree.len();
     tree.push(meta);
     if let Some(prev) = *prev {
-        tree[prev.get()].next = Some(new_index);
+        tree[prev].next = Some(new_index);
     }
     *prev = Some(new_index);
     new_index
@@ -282,13 +260,13 @@ fn push_object_meta(
 
 fn finish_object_meta(
     tree: &mut [ObjectMeta],
-    parent: Option<NonZeroUsize>,
+    parent: Option<usize>,
     context: &mut Context,
     meta_prototype: impl Fn(NameOrIndex) -> ObjectMeta,
 ) -> ObjectMeta {
     match context {
         Context::InStructWithName { start, len } => {
-            let parent = &mut tree[parent.unwrap().get()].ty;
+            let parent = &mut tree[parent.unwrap()].ty;
             assert!(*parent == ObjectType::EmptyStructure || *parent == ObjectType::Structure);
             *parent = ObjectType::Structure;
 
@@ -302,7 +280,7 @@ fn finish_object_meta(
         }
         Context::InStructWithoutName => todo!(),
         Context::InArray { index } => {
-            let parent = &mut tree[parent.unwrap().get()].ty;
+            let parent = &mut tree[parent.unwrap()].ty;
             assert!(*parent == ObjectType::EmptyArray || *parent == ObjectType::Array);
             *parent = ObjectType::Array;
 
@@ -324,7 +302,7 @@ fn find_escaped_string_length(input: &str) -> Option<usize> {
     let mut last_backslash = false;
     for (index, &byte) in input.as_bytes().iter().enumerate() {
         match byte {
-            b'/' if !last_backslash => {
+            b'\\' if !last_backslash => {
                 last_backslash = true;
             }
             b'"' if !last_backslash => {
