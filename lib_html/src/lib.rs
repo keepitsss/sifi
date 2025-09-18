@@ -269,3 +269,6 @@ pub fn aside(arena: &Bump) -> Aside<'_> {
         pre_render_hook,
     }
 }
+// TODO: header
+// TODO: footer
+const _: () = ();
