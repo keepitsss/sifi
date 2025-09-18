@@ -1,5 +1,5 @@
 use std::{
-    num::{NonZeroU32, NonZeroU64},
+    num::{NonZeroU32, NonZeroU64, NonZeroUsize},
     time::Instant,
 };
 
@@ -21,15 +21,16 @@ enum ObjectType {
     Number = 3,
     Structure = 4,
     Array = 5,
+    Null = 6,
 }
 #[derive(Debug, Clone, Copy)]
 struct ObjectMeta {
     name_or_index: NameOrIndex,
-    parent: Option<NonZeroU64>,
+    parent: Option<NonZeroUsize>,
     ty: ObjectType,
     source_start: usize,
     source_len: usize,
-    next: Option<NonZeroU64>,
+    next: Option<NonZeroUsize>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -70,7 +71,7 @@ fn main() -> anyhow::Result<()> {
         }
         match content[cursor] {
             b'[' => {
-                let new_parent = tree.len() as u64;
+                let new_parent = tree.len();
                 let meta = ObjectMeta {
                     name_or_index: NameOrIndex::Index(0),
                     parent,
@@ -80,11 +81,11 @@ fn main() -> anyhow::Result<()> {
                     next: prev,
                 };
                 tree.push(meta);
-                parent = Some(NonZeroU64::new(new_parent).unwrap());
+                parent = Some(NonZeroUsize::new(new_parent).unwrap());
                 cursor += 1;
             }
             b'{' => {
-                let new_parent = tree.len() as u64;
+                let new_parent = tree.len();
                 let meta = ObjectMeta {
                     name_or_index: NameOrIndex::Index(0),
                     parent,
@@ -94,7 +95,7 @@ fn main() -> anyhow::Result<()> {
                     next: prev,
                 };
                 tree.push(meta);
-                parent = Some(NonZeroU64::new(new_parent).unwrap());
+                parent = Some(NonZeroUsize::new(new_parent).unwrap());
                 cursor += 1;
             }
             b'"' => {
@@ -102,8 +103,8 @@ fn main() -> anyhow::Result<()> {
                 cursor += 1;
                 let len = find_escaped_string_length(str::from_utf8(&content[cursor..]).unwrap())
                     .unwrap()
-                    + 1;
-                cursor += len;
+                    + 2;
+                cursor += len - 1;
                 dbg!(str::from_utf8(&content[start..start + len]).unwrap());
                 if let Some((name_start, name_len)) = name {
                     let meta = ObjectMeta {
@@ -117,15 +118,21 @@ fn main() -> anyhow::Result<()> {
                         source_len: len,
                         next: None,
                     };
-                    let new_index = NonZeroU64::new(tree.len() as u64).unwrap();
+                    let new_index = NonZeroUsize::new(tree.len()).unwrap();
                     tree.push(meta);
                     if let Some(prev) = prev {
-                        tree[usize::try_from(u64::from(prev)).unwrap()].next = Some(new_index);
+                        tree[prev.get()].next = Some(new_index);
                     }
                     prev = Some(new_index);
                     name = None;
+                    if content[cursor] == b',' {
+                        cursor += 1;
+                    }
+                    while content[cursor] == b' ' {
+                        cursor += 1;
+                    }
                 } else {
-                    match &mut tree[usize::try_from(parent.unwrap().get()).unwrap()] {
+                    match &mut tree[parent.unwrap().get()] {
                         ObjectMeta {
                             ty: ObjectType::Structure,
                             ..
@@ -134,6 +141,11 @@ fn main() -> anyhow::Result<()> {
                                 start as u64,
                                 NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
                             ));
+                            assert_eq!(content[cursor], b':');
+                            cursor += 1;
+                            while content[cursor] == b' ' {
+                                cursor += 1;
+                            }
                         }
                         ObjectMeta {
                             ty: ObjectType::Array,
@@ -155,20 +167,85 @@ fn main() -> anyhow::Result<()> {
                                 next: None,
                             };
 
-                            let new_index = NonZeroU64::new(tree.len() as u64).unwrap();
+                            let new_index = NonZeroUsize::new(tree.len()).unwrap();
                             tree.push(meta);
 
                             if let Some(prev) = prev {
-                                tree[usize::try_from(u64::from(prev)).unwrap()].next =
-                                    Some(new_index);
+                                tree[prev.get()].next = Some(new_index);
                             }
                             prev = Some(new_index);
+
+                            if content[cursor] == b',' {
+                                cursor += 1;
+                            }
+                            while content[cursor] == b' ' {
+                                cursor += 1;
+                            }
                         }
                         _ => unreachable!(),
                     }
                 }
             }
-            c => todo!("unknown character '{}'", c as char),
+            b'n' => {
+                assert_eq!(&content[cursor..cursor + 4], b"null");
+                let meta = if let Some((name_start, name_len)) = name {
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Name {
+                            start: name_start,
+                            len: name_len,
+                        },
+                        parent,
+                        ty: ObjectType::Null,
+                        source_start: cursor,
+                        source_len: 4,
+                        next: None,
+                    }
+                } else if let ObjectMeta {
+                    ty: ObjectType::Array,
+                    name_or_index,
+                    ..
+                } = &mut tree[parent.unwrap().get()]
+                {
+                    let NameOrIndex::Index(index) = name_or_index else {
+                        unreachable!()
+                    };
+                    let my_index = *index;
+                    *index += 1;
+                    ObjectMeta {
+                        name_or_index: NameOrIndex::Index(my_index),
+                        parent,
+                        ty: ObjectType::Null,
+                        source_start: cursor,
+                        source_len: 4,
+                        next: None,
+                    }
+                } else {
+                    unreachable!()
+                };
+                let new_index = NonZeroUsize::new(tree.len()).unwrap();
+                tree.push(meta);
+                if let Some(prev) = prev {
+                    tree[prev.get()].next = Some(new_index);
+                }
+                prev = Some(new_index);
+                name = None;
+                cursor += 4;
+
+                if content[cursor] == b',' {
+                    cursor += 1;
+                }
+                while content[cursor] == b' ' {
+                    cursor += 1;
+                }
+            }
+            c => {
+                todo!(
+                    "unknown character '{}' in symbols '{}'",
+                    c as char,
+                    str::from_utf8(&content[tree[parent.unwrap().get()].source_start..=cursor])
+                        .unwrap()
+                )
+            }
         }
         if cursor > 10000 {
             println!(
