@@ -1,5 +1,5 @@
 use std::{
-    num::{NonZeroU32, NonZeroU64, NonZeroUsize},
+    num::{NonZeroU32, NonZeroUsize},
     time::Instant,
 };
 
@@ -13,15 +13,17 @@ macro_rules! measured {
     }};
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u64)]
 enum ObjectType {
     String = 1,
     Bool = 2,
     Number = 3,
-    Structure = 4,
-    Array = 5,
-    Null = 6,
+    EmptyArray = 4,
+    EmptyStructure = 5,
+    Array = 6,
+    Structure = 7,
+    Null = 8,
 }
 #[derive(Debug, Clone, Copy)]
 struct ObjectMeta {
@@ -40,6 +42,14 @@ enum NameOrIndex {
 }
 const _: () = assert!(size_of::<NameOrIndex>() == 2 * size_of::<u64>());
 
+#[derive(Debug)]
+enum Context {
+    InStructWithName { start: u64, len: NonZeroU32 },
+    InStructWithoutName,
+    InArray { index: u64 },
+    TopLevel,
+}
+
 fn main() -> anyhow::Result<()> {
     let content: &'static [u8] = measured!("reading file", {
         std::fs::read_to_string("business-licences.json")?
@@ -47,7 +57,7 @@ fn main() -> anyhow::Result<()> {
             .leak()
     });
     let mut tree: Vec<ObjectMeta> = Vec::new();
-    tree.push(unsafe {
+    tree.push({
         // FIXME: use zeroed value
         ObjectMeta {
             name_or_index: NameOrIndex::Index(0),
@@ -62,7 +72,7 @@ fn main() -> anyhow::Result<()> {
     let application_start = Instant::now();
     let mut cursor = 0;
     let mut parent = None;
-    let mut name: Option<(u64, NonZeroU32)> = None;
+    let mut context = Context::TopLevel;
     let mut prev = None;
     loop {
         if cursor == content.len() {
@@ -71,65 +81,34 @@ fn main() -> anyhow::Result<()> {
         }
         match content[cursor] {
             b'[' => {
-                let new_parent = tree.len();
-                let meta = ObjectMeta {
-                    name_or_index: NameOrIndex::Index(0),
+                let meta_prototype = |name_or_index| ObjectMeta {
+                    name_or_index,
                     parent,
-                    ty: ObjectType::Array,
+                    ty: ObjectType::EmptyArray,
                     source_start: cursor,
                     source_len: 0,
                     next: prev,
                 };
-                tree.push(meta);
-                parent = Some(NonZeroUsize::new(new_parent).unwrap());
+                let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
+                let new_index = push_object_meta(&mut tree, &mut prev, meta);
+                parent = Some(new_index);
+                context = Context::InArray { index: 0 };
+
                 cursor += 1;
             }
             b'{' => {
-                let new_parent = tree.len();
-
-                let meta = if let Some((name_start, name_len)) = name {
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Name {
-                            start: name_start,
-                            len: name_len,
-                        },
-                        parent,
-                        ty: ObjectType::Structure,
-                        source_start: cursor,
-                        source_len: 0,
-                        next: None,
-                    }
-                } else if let ObjectMeta {
-                    ty: ObjectType::Array,
+                let meta_prototype = |name_or_index| ObjectMeta {
                     name_or_index,
-                    ..
-                } = &mut tree[parent.unwrap().get()]
-                {
-                    let NameOrIndex::Index(index) = name_or_index else {
-                        unreachable!()
-                    };
-                    let my_index = *index;
-                    *index += 1;
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Index(my_index),
-                        parent,
-                        ty: ObjectType::Structure,
-                        source_start: cursor,
-                        source_len: 0,
-                        next: None,
-                    }
-                } else {
-                    dbg!(tree[parent.unwrap().get()]);
-                    unreachable!()
+                    parent,
+                    ty: ObjectType::EmptyStructure,
+                    source_start: cursor,
+                    source_len: 0,
+                    next: None,
                 };
-                let new_index = NonZeroUsize::new(tree.len()).unwrap();
-                tree.push(meta);
-                if let Some(prev) = prev {
-                    tree[prev.get()].next = Some(new_index);
-                }
-                prev = Some(new_index);
-                name = None;
-                parent = Some(NonZeroUsize::new(new_parent).unwrap());
+                let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
+                let new_index = push_object_meta(&mut tree, &mut prev, meta);
+                parent = Some(new_index);
+                context = Context::InStructWithoutName;
 
                 cursor += 1;
             }
@@ -140,132 +119,51 @@ fn main() -> anyhow::Result<()> {
                     .unwrap()
                     + 2;
                 cursor += len - 1;
-                // dbg!(str::from_utf8(&content[start..start + len]).unwrap());
-                // dbg!(tree[parent.unwrap().get()]);
-                // dbg!(name);
-                if let Some((name_start, name_len)) = name {
-                    let meta = ObjectMeta {
-                        name_or_index: NameOrIndex::Name {
-                            start: name_start,
-                            len: name_len,
-                        },
+
+                if let Context::InStructWithoutName = context {
+                    context = Context::InStructWithName {
+                        start: start as u64,
+                        len: NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
+                    };
+
+                    assert_eq!(content[cursor], b':');
+                    cursor += 1;
+                    while content[cursor] == b' ' {
+                        cursor += 1;
+                    }
+                } else {
+                    let meta_prototype = |name_or_index| ObjectMeta {
+                        name_or_index,
                         parent,
                         ty: ObjectType::String,
                         source_start: start,
                         source_len: len,
                         next: None,
                     };
-                    let new_index = NonZeroUsize::new(tree.len()).unwrap();
-                    tree.push(meta);
-                    if let Some(prev) = prev {
-                        tree[prev.get()].next = Some(new_index);
-                    }
-                    prev = Some(new_index);
-                    name = None;
+                    let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
+                    let _ = push_object_meta(&mut tree, &mut prev, meta);
+
                     if content[cursor] == b',' {
                         cursor += 1;
                     }
                     while content[cursor] == b' ' {
                         cursor += 1;
                     }
-                } else {
-                    match &mut tree[parent.unwrap().get()] {
-                        ObjectMeta {
-                            ty: ObjectType::Structure,
-                            ..
-                        } => {
-                            name = Some((
-                                start as u64,
-                                NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
-                            ));
-                            assert_eq!(content[cursor], b':');
-                            cursor += 1;
-                            while content[cursor] == b' ' {
-                                cursor += 1;
-                            }
-                        }
-                        ObjectMeta {
-                            ty: ObjectType::Array,
-                            name_or_index,
-                            ..
-                        } => {
-                            let NameOrIndex::Index(index) = name_or_index else {
-                                unreachable!();
-                            };
-                            let my_index = *index;
-                            *index += 1;
-
-                            let meta = ObjectMeta {
-                                name_or_index: NameOrIndex::Index(my_index),
-                                parent,
-                                ty: ObjectType::String,
-                                source_start: start,
-                                source_len: len,
-                                next: None,
-                            };
-
-                            let new_index = NonZeroUsize::new(tree.len()).unwrap();
-                            tree.push(meta);
-
-                            if let Some(prev) = prev {
-                                tree[prev.get()].next = Some(new_index);
-                            }
-                            prev = Some(new_index);
-
-                            if content[cursor] == b',' {
-                                cursor += 1;
-                            }
-                            while content[cursor] == b' ' {
-                                cursor += 1;
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
                 }
             }
             b'n' => {
                 assert_eq!(&content[cursor..cursor + 4], b"null");
-                let meta = if let Some((name_start, name_len)) = name {
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Name {
-                            start: name_start,
-                            len: name_len,
-                        },
-                        parent,
-                        ty: ObjectType::Null,
-                        source_start: cursor,
-                        source_len: 4,
-                        next: None,
-                    }
-                } else if let ObjectMeta {
-                    ty: ObjectType::Array,
+
+                let meta_prototype = |name_or_index| ObjectMeta {
                     name_or_index,
-                    ..
-                } = &mut tree[parent.unwrap().get()]
-                {
-                    let NameOrIndex::Index(index) = name_or_index else {
-                        unreachable!()
-                    };
-                    let my_index = *index;
-                    *index += 1;
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Index(my_index),
-                        parent,
-                        ty: ObjectType::Null,
-                        source_start: cursor,
-                        source_len: 4,
-                        next: None,
-                    }
-                } else {
-                    unreachable!()
+                    parent,
+                    ty: ObjectType::Null,
+                    source_start: cursor,
+                    source_len: 4,
+                    next: None,
                 };
-                let new_index = NonZeroUsize::new(tree.len()).unwrap();
-                tree.push(meta);
-                if let Some(prev) = prev {
-                    tree[prev.get()].next = Some(new_index);
-                }
-                prev = Some(new_index);
-                name = None;
+                let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
+                let _ = push_object_meta(&mut tree, &mut prev, meta);
                 cursor += 4;
 
                 if content[cursor] == b',' {
@@ -287,47 +185,17 @@ fn main() -> anyhow::Result<()> {
                         cursor += 1;
                     }
                 }
-                let meta = if let Some((name_start, name_len)) = name {
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Name {
-                            start: name_start,
-                            len: name_len,
-                        },
-                        parent,
-                        ty: ObjectType::Number,
-                        source_start: start,
-                        source_len: cursor - start,
-                        next: None,
-                    }
-                } else if let ObjectMeta {
-                    ty: ObjectType::Array,
+
+                let meta_prototype = |name_or_index| ObjectMeta {
                     name_or_index,
-                    ..
-                } = &mut tree[parent.unwrap().get()]
-                {
-                    let NameOrIndex::Index(index) = name_or_index else {
-                        unreachable!()
-                    };
-                    let my_index = *index;
-                    *index += 1;
-                    ObjectMeta {
-                        name_or_index: NameOrIndex::Index(my_index),
-                        parent,
-                        ty: ObjectType::Number,
-                        source_start: start,
-                        source_len: cursor - start,
-                        next: None,
-                    }
-                } else {
-                    unreachable!()
+                    parent,
+                    ty: ObjectType::Number,
+                    source_start: start,
+                    source_len: cursor - start,
+                    next: None,
                 };
-                let new_index = NonZeroUsize::new(tree.len()).unwrap();
-                tree.push(meta);
-                if let Some(prev) = prev {
-                    tree[prev.get()].next = Some(new_index);
-                }
-                prev = Some(new_index);
-                name = None;
+                let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
+                let _ = push_object_meta(&mut tree, &mut prev, meta);
 
                 if content[cursor] == b',' {
                     cursor += 1;
@@ -360,6 +228,58 @@ fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+fn push_object_meta(
+    tree: &mut Vec<ObjectMeta>,
+    prev: &mut Option<std::num::NonZero<usize>>,
+    meta: ObjectMeta,
+) -> std::num::NonZero<usize> {
+    let new_index = NonZeroUsize::new(tree.len()).unwrap();
+    tree.push(meta);
+    if let Some(prev) = *prev {
+        tree[prev.get()].next = Some(new_index);
+    }
+    *prev = Some(new_index);
+    new_index
+}
+
+fn finish_object_meta(
+    tree: &mut [ObjectMeta],
+    parent: Option<NonZeroUsize>,
+    context: &mut Context,
+    meta_prototype: impl Fn(NameOrIndex) -> ObjectMeta,
+) -> ObjectMeta {
+    match context {
+        Context::InStructWithName { start, len } => {
+            let parent = &mut tree[parent.unwrap().get()].ty;
+            assert!(*parent == ObjectType::EmptyStructure || *parent == ObjectType::Structure);
+            *parent = ObjectType::Structure;
+
+            let name_or_index = NameOrIndex::Name {
+                start: *start,
+                len: *len,
+            };
+            let meta = meta_prototype(name_or_index);
+            *context = Context::InStructWithoutName;
+            meta
+        }
+        Context::InStructWithoutName => todo!(),
+        Context::InArray { index } => {
+            let parent = &mut tree[parent.unwrap().get()].ty;
+            assert!(*parent == ObjectType::EmptyArray || *parent == ObjectType::Array);
+            *parent = ObjectType::Array;
+
+            let name_or_index = NameOrIndex::Index(*index);
+            *index += 1;
+            meta_prototype(name_or_index)
+        }
+        Context::TopLevel => {
+            // FIXME
+            let name_or_index = NameOrIndex::Index(0);
+            meta_prototype(name_or_index)
+        }
+    }
 }
 
 /// Gets escaped string without opening quote and returns bytes count to closing quote(including it)
