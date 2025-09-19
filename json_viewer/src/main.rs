@@ -79,11 +79,17 @@ enum NameOrIndex {
 }
 const _: () = assert!(size_of::<NameOrIndex>() == 2 * size_of::<u64>());
 
-#[derive(Debug)]
-enum Context {
-    InStructWithName { start: u64, len: NonZeroU32 },
+#[derive(Debug, Default)]
+enum ParsingState {
+    InStructWithName {
+        start: u64,
+        len: NonZeroU32,
+    },
     InStructWithoutName,
-    InArray { index: u64 },
+    InArray {
+        index: u64,
+    },
+    #[default]
     TopLevel,
 }
 
@@ -103,194 +109,143 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Default)]
+struct ParsingContext {
+    output: JsonMetadata,
+    cursor: usize,
+    state: ParsingState,
+    parent: Option<JsonMetadataIndex>,
+    prev: Option<JsonMetadataIndex>,
+}
+
 fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
-    let mut json_metadata = JsonMetadata::default();
-
-    let mut cursor = 0;
-    let mut parent = None;
-    let mut context = Context::TopLevel;
-    let mut prev = None;
+    let mut ctx = ParsingContext::default();
     loop {
-        if cursor == content.len() {
-            return json_metadata;
+        if ctx.cursor == content.len() {
+            return ctx.output;
         }
-        match content[cursor] {
+        match content[ctx.cursor] {
             b'[' => {
-                let meta_prototype = |name_or_index| ObjectMeta {
-                    name_or_index,
-                    parent,
-                    ty: ObjectType::EmptyArray,
-                    source_start: cursor,
-                    source_len: 0,
-                    prev,
-                    next: None,
-                };
-                let meta =
-                    finish_object_meta(&mut json_metadata, parent, &mut context, meta_prototype);
-                let new_index = push_object_meta(&mut json_metadata, &mut prev, meta);
-                parent = Some(new_index);
-                prev = None;
-                context = Context::InArray { index: 0 };
+                let new_index = ctx.add_object_meta(ObjectType::EmptyArray, 0);
+                ctx.parent = Some(new_index);
+                ctx.prev = None;
+                ctx.state = ParsingState::InArray { index: 0 };
 
-                cursor += 1;
+                ctx.cursor += 1;
             }
             b'{' => {
-                let meta_prototype = |name_or_index| ObjectMeta {
-                    name_or_index,
-                    parent,
-                    ty: ObjectType::EmptyStructure,
-                    source_start: cursor,
-                    source_len: 0,
-                    prev,
-                    next: None,
-                };
-                let meta =
-                    finish_object_meta(&mut json_metadata, parent, &mut context, meta_prototype);
-                let new_index = push_object_meta(&mut json_metadata, &mut prev, meta);
-                parent = Some(new_index);
-                prev = None;
-                context = Context::InStructWithoutName;
+                let new_index = ctx.add_object_meta(ObjectType::EmptyStructure, 0);
+                ctx.parent = Some(new_index);
+                ctx.prev = None;
+                ctx.state = ParsingState::InStructWithoutName;
 
-                cursor += 1;
+                ctx.cursor += 1;
             }
             b']' => {
-                cursor += 1;
+                ctx.cursor += 1;
 
-                let parent_ref_mut = &mut json_metadata[parent.unwrap()];
-                parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
+                let parent_ref_mut = &mut ctx.output[ctx.parent.unwrap()];
+                parent_ref_mut.source_len = ctx.cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
-                    NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
-                    NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
+                    NameOrIndex::Name { .. } => ctx.state = ParsingState::InStructWithoutName,
+                    NameOrIndex::Index(index) => {
+                        ctx.state = ParsingState::InArray { index: index + 1 }
+                    }
                 }
-                prev = parent;
-                parent = parent_ref_mut.parent;
+                ctx.prev = ctx.parent;
+                ctx.parent = parent_ref_mut.parent;
 
-                if content.get(cursor) == Some(&b',') {
-                    cursor += 1;
+                if content.get(ctx.cursor) == Some(&b',') {
+                    ctx.cursor += 1;
                 }
-                while content.get(cursor) == Some(&b' ') {
-                    cursor += 1;
+                while content.get(ctx.cursor) == Some(&b' ') {
+                    ctx.cursor += 1;
                 }
             }
             b'}' => {
-                cursor += 1;
+                ctx.cursor += 1;
 
-                let parent_ref_mut = &mut json_metadata[parent.unwrap()];
-                parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
+                let parent_ref_mut = &mut ctx.output[ctx.parent.unwrap()];
+                parent_ref_mut.source_len = ctx.cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
-                    NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
-                    NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
+                    NameOrIndex::Name { .. } => ctx.state = ParsingState::InStructWithoutName,
+                    NameOrIndex::Index(index) => {
+                        ctx.state = ParsingState::InArray { index: index + 1 }
+                    }
                 }
-                prev = parent;
-                parent = parent_ref_mut.parent;
+                ctx.prev = ctx.parent;
+                ctx.parent = parent_ref_mut.parent;
 
-                if content.get(cursor) == Some(&b',') {
-                    cursor += 1;
+                if content.get(ctx.cursor) == Some(&b',') {
+                    ctx.cursor += 1;
                 }
-                while content.get(cursor) == Some(&b' ') {
-                    cursor += 1;
+                while content.get(ctx.cursor) == Some(&b' ') {
+                    ctx.cursor += 1;
                 }
             }
             b'"' => {
-                let start = cursor;
                 let len = find_escaped_string_length(unsafe {
-                    str::from_utf8_unchecked(&content[cursor..])
+                    str::from_utf8_unchecked(&content[ctx.cursor..])
                 })
                 .unwrap();
-                cursor += len;
 
-                if let Context::InStructWithoutName = context {
-                    context = Context::InStructWithName {
-                        start: start as u64,
+                if let ParsingState::InStructWithoutName = ctx.state {
+                    ctx.state = ParsingState::InStructWithName {
+                        start: ctx.cursor as u64,
                         len: NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
                     };
+                    ctx.cursor += len;
 
-                    assert_eq!(content[cursor], b':');
-                    cursor += 1;
-                    while content[cursor] == b' ' {
-                        cursor += 1;
+                    assert_eq!(content[ctx.cursor], b':');
+                    ctx.cursor += 1;
+                    while content[ctx.cursor] == b' ' {
+                        ctx.cursor += 1;
                     }
                 } else {
-                    let meta_prototype = |name_or_index| ObjectMeta {
-                        name_or_index,
-                        parent,
-                        ty: ObjectType::String,
-                        source_start: start,
-                        source_len: len,
-                        prev,
-                        next: None,
-                    };
-                    let meta = finish_object_meta(
-                        &mut json_metadata,
-                        parent,
-                        &mut context,
-                        meta_prototype,
-                    );
-                    let _ = push_object_meta(&mut json_metadata, &mut prev, meta);
+                    let _ = ctx.add_object_meta(ObjectType::String, len);
+                    ctx.cursor += len;
 
-                    if content[cursor] == b',' {
-                        cursor += 1;
+                    if content[ctx.cursor] == b',' {
+                        ctx.cursor += 1;
                     }
-                    while content[cursor] == b' ' {
-                        cursor += 1;
+                    while content[ctx.cursor] == b' ' {
+                        ctx.cursor += 1;
                     }
                 }
             }
             b'n' => {
-                assert_eq!(&content[cursor..cursor + 4], b"null");
+                assert_eq!(&content[ctx.cursor..ctx.cursor + 4], b"null");
 
-                let meta_prototype = |name_or_index| ObjectMeta {
-                    name_or_index,
-                    parent,
-                    ty: ObjectType::Null,
-                    source_start: cursor,
-                    source_len: 4,
-                    prev,
-                    next: None,
-                };
-                let meta =
-                    finish_object_meta(&mut json_metadata, parent, &mut context, meta_prototype);
-                let _ = push_object_meta(&mut json_metadata, &mut prev, meta);
-                cursor += 4;
+                let _ = ctx.add_object_meta(ObjectType::Null, 4);
 
-                if content[cursor] == b',' {
-                    cursor += 1;
+                ctx.cursor += 4;
+                if content[ctx.cursor] == b',' {
+                    ctx.cursor += 1;
                 }
-                while content[cursor] == b' ' {
-                    cursor += 1;
+                while content[ctx.cursor] == b' ' {
+                    ctx.cursor += 1;
                 }
             }
             b'-' | b'0'..=b'9' => {
-                let start = cursor;
-                cursor += 1;
-                while content[cursor].is_ascii_digit() {
-                    cursor += 1;
+                let mut length = 1;
+                while content[ctx.cursor + length].is_ascii_digit() {
+                    length += 1;
                 }
-                if content[cursor] == b'.' {
-                    cursor += 1;
-                    while content[cursor].is_ascii_digit() {
-                        cursor += 1;
+                if content[ctx.cursor + length] == b'.' {
+                    length += 1;
+                    while content[ctx.cursor + length].is_ascii_digit() {
+                        length += 1;
                     }
                 }
 
-                let meta_prototype = |name_or_index| ObjectMeta {
-                    name_or_index,
-                    parent,
-                    ty: ObjectType::Number,
-                    source_start: start,
-                    source_len: cursor - start,
-                    prev,
-                    next: None,
-                };
-                let meta =
-                    finish_object_meta(&mut json_metadata, parent, &mut context, meta_prototype);
-                let _ = push_object_meta(&mut json_metadata, &mut prev, meta);
+                let _ = ctx.add_object_meta(ObjectType::Number, length);
 
-                if content[cursor] == b',' {
-                    cursor += 1;
+                ctx.cursor += length;
+                if content[ctx.cursor] == b',' {
+                    ctx.cursor += 1;
                 }
-                while content[cursor] == b' ' {
-                    cursor += 1;
+                while content[ctx.cursor] == b' ' {
+                    ctx.cursor += 1;
                 }
             }
             c => {
@@ -298,7 +253,7 @@ fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                     "unknown character '{}' in symbols '{}'",
                     c as char,
                     str::from_utf8(
-                        &content[json_metadata[parent.unwrap()].source_start..=cursor + 10]
+                        &content[ctx.output[ctx.parent.unwrap()].source_start..=ctx.cursor + 10]
                     )
                     .unwrap()
                 )
@@ -307,53 +262,75 @@ fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
     }
 }
 
-fn push_object_meta(
-    json_metadata: &mut JsonMetadata,
-    prev: &mut Option<JsonMetadataIndex>,
-    meta: ObjectMeta,
-) -> JsonMetadataIndex {
-    let new_index = json_metadata.push(meta);
-    if let Some(prev) = *prev {
-        json_metadata[prev].next = Some(new_index);
+impl ParsingContext {
+    fn add_object_meta(&mut self, ty: ObjectType, source_len: usize) -> JsonMetadataIndex {
+        let meta = self.create_object_meta(ty, source_len);
+        self.push_object_meta(meta)
     }
-    *prev = Some(new_index);
-    new_index
-}
 
-fn finish_object_meta(
-    json_metadata: &mut JsonMetadata,
-    parent: Option<JsonMetadataIndex>,
-    context: &mut Context,
-    meta_prototype: impl Fn(NameOrIndex) -> ObjectMeta,
-) -> ObjectMeta {
-    match context {
-        Context::InStructWithName { start, len } => {
-            let parent = &mut json_metadata[parent.unwrap()].ty;
-            assert!(*parent == ObjectType::EmptyStructure || *parent == ObjectType::Structure);
-            *parent = ObjectType::Structure;
-
-            let name_or_index = NameOrIndex::Name {
-                start: *start,
-                len: *len,
-            };
-            let meta = meta_prototype(name_or_index);
-            *context = Context::InStructWithoutName;
-            meta
+    fn push_object_meta(&mut self, meta: ObjectMeta) -> JsonMetadataIndex {
+        let new_index = self.output.push(meta);
+        if let Some(prev) = self.prev {
+            self.output[prev].next = Some(new_index);
         }
-        Context::InStructWithoutName => todo!(),
-        Context::InArray { index } => {
-            let parent = &mut json_metadata[parent.unwrap()].ty;
-            assert!(*parent == ObjectType::EmptyArray || *parent == ObjectType::Array);
-            *parent = ObjectType::Array;
+        self.prev = Some(new_index);
+        new_index
+    }
 
-            let name_or_index = NameOrIndex::Index(*index);
-            *index += 1;
-            meta_prototype(name_or_index)
-        }
-        Context::TopLevel => {
-            // FIXME
-            let name_or_index = NameOrIndex::Index(0);
-            meta_prototype(name_or_index)
+    fn create_object_meta(&mut self, ty: ObjectType, source_len: usize) -> ObjectMeta {
+        match &mut self.state {
+            ParsingState::InStructWithName { start, len } => {
+                let parent = &mut self.output[self.parent.unwrap()].ty;
+                assert!(*parent == ObjectType::EmptyStructure || *parent == ObjectType::Structure);
+                *parent = ObjectType::Structure;
+
+                let name_or_index = NameOrIndex::Name {
+                    start: *start,
+                    len: *len,
+                };
+                let meta = ObjectMeta {
+                    name_or_index,
+                    ty,
+                    source_start: self.cursor,
+                    source_len,
+                    parent: self.parent,
+                    prev: self.prev,
+                    next: None,
+                };
+                self.state = ParsingState::InStructWithoutName;
+                meta
+            }
+            ParsingState::InStructWithoutName => todo!(),
+            ParsingState::InArray { index } => {
+                let parent = &mut self.output[self.parent.unwrap()].ty;
+                assert!(*parent == ObjectType::EmptyArray || *parent == ObjectType::Array);
+                *parent = ObjectType::Array;
+
+                let name_or_index = NameOrIndex::Index(*index);
+                *index += 1;
+                ObjectMeta {
+                    name_or_index,
+                    ty,
+                    source_start: self.cursor,
+                    source_len,
+                    parent: self.parent,
+                    prev: self.prev,
+                    next: None,
+                }
+            }
+            ParsingState::TopLevel => {
+                // FIXME
+                let name_or_index = NameOrIndex::Index(0);
+                ObjectMeta {
+                    name_or_index,
+                    ty,
+                    source_start: self.cursor,
+                    source_len,
+                    parent: self.parent,
+                    prev: self.prev,
+                    next: None,
+                }
+            }
         }
     }
 }
