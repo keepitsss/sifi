@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
             .into_bytes()
             .leak()
     });
-    let structure = measured!("parsing structure", {
+    let mut structure = measured!("parsing structure", {
         // use std::hint::black_box;
         // for _ in 1..20 {
         //     parse_json_structure(black_box(content));
@@ -74,7 +74,11 @@ fn main() -> anyhow::Result<()> {
                     selection_relative -= 1;
                     selection = index;
                 }
-                _ => (),
+                b'\r' => {
+                    let object = &mut structure[selection];
+                    object.expanded = !object.expanded;
+                }
+                _ => {}
             }
             while selection_relative >= height as i32 {
                 scroll = structure.next_visible(scroll).unwrap();
