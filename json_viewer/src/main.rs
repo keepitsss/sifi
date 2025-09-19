@@ -111,33 +111,45 @@ fn render_frame(
         ..
     } = rustix::termios::tcgetwinsize(File::open("/dev/tty")?)?;
 
-    let lines = render_overview(content, structure, scroll, height as usize, selection);
-    for (i, line) in lines.into_iter().enumerate() {
+    let overview_lines = render_overview(content, structure, scroll, height as usize, selection);
+    let data_lines = if structure[selection].source_len < 10000 {
+        Some(render_data(content, structure, selection))
+    } else {
+        None
+    };
+    for i in 0..height as usize {
         let height_gap = 0;
-        let width_gap = 0;
+        let mut width_gap = 0;
+        if let Some(line) = overview_lines.get(i) {
+            // move cursor
+            stdout.write_fmt(format_args!(
+                "\x1B[{};{}H",
+                i as u16 + height_gap + 1, // height
+                width_gap + 1,             // width
+            ))?;
+            stdout.write_all(line.as_bytes())?;
+        }
+        width_gap = (width * 2 / 5) as usize;
+        stdout.write_all(&b" ".repeat(width_gap))?;
         // move cursor
         stdout.write_fmt(format_args!(
             "\x1B[{};{}H",
             i as u16 + height_gap + 1, // height
             width_gap + 1,             // width
         ))?;
-        stdout.write_all(line.as_bytes())?;
-        let max_width = (width * 2 / 5) as usize;
-        stdout.write_all(&b" ".repeat(max_width))?;
-        // move cursor
-        stdout.write_fmt(format_args!(
-            "\x1B[{};{}H",
-            i as u16 + height_gap + 1, // height
-            max_width + width_gap + 1, // width
-        ))?;
         stdout.write_all(RESET.as_bytes())?;
         // move cursor
         stdout.write_fmt(format_args!(
             "\x1B[{};{}H",
             i as u16 + height_gap + 1, // height
-            max_width + width_gap + 1, // width
+            width_gap + 1,             // width
         ))?;
-        stdout.write_all(b"\x1b[K|")?;
+        stdout.write_all(b"\x1b[K | ")?;
+        if let Some(data_lines) = &data_lines
+            && let Some(line) = data_lines.get(i)
+        {
+            stdout.write_all(line.as_bytes())?;
+        }
     }
     Ok(height)
 }
@@ -145,6 +157,7 @@ fn render_frame(
 const ITALIC: &str = "\x1b[3m";
 const RED_FG: &str = "\x1b[31m";
 const GREEN_FG: &str = "\x1b[32m";
+const YELLOW_FG: &str = "\x1b[33m";
 const BLUE_FG: &str = "\x1b[34m";
 const CYAN_FG: &str = "\x1b[36m";
 const BLUE_BG: &str = "\x1b[44m";
@@ -269,14 +282,26 @@ fn render_data(
     structure: &JsonMetadata,
     root_ix: JsonMetadataIndex,
 ) -> Vec<String> {
-    const ITALIC: &str = "\x1b[3m";
-    const RED_FG: &str = "\x1b[31m";
-    const GREEN_FG: &str = "\x1b[32m";
-    const YELLOW_FG: &str = "\x1b[33m";
-    const BLUE_FG: &str = "\x1b[34m";
-    // const CYAN_FG: &str = "\x1b[36m";
-    const RESET: &str = "\x1b[0m";
-
+    if let Some(style) = match structure[root_ix].ty {
+        ObjectType::Array | ObjectType::Structure => None,
+        ObjectType::EmptyArray => Some(""),
+        ObjectType::EmptyStructure => Some(""),
+        ObjectType::String => Some(GREEN_FG),
+        ObjectType::Bool => {
+            todo!();
+        }
+        ObjectType::Number => Some(RED_FG),
+        ObjectType::Null => Some(BLUE_FG),
+    } {
+        return vec![format!(
+            "{style}{}",
+            str::from_utf8(
+                &content[structure[root_ix].source_start
+                    ..structure[root_ix].source_start + structure[root_ix].source_len]
+            )
+            .unwrap(),
+        )];
+    }
     let mut lines = Vec::new();
     let mut current_ix = root_ix;
     let mut indentation = 0;
