@@ -25,10 +25,25 @@ fn main() -> anyhow::Result<()> {
         // }
         parse_json_structure(content)
     });
+
+    let lines = render_lines(content, structure, 10);
+    for line in lines {
+        println!("{line}");
+    }
+
+    // println!("objects: {}", structure.list.len() - 1);
+    Ok(())
+}
+
+fn render_lines(
+    content: &'static [u8],
+    structure: JsonMetadata,
+    at_least_lines: usize,
+) -> Vec<String> {
     let mut lines = Vec::new();
     let mut current_ix = JsonMetadataIndex::new(0);
     let mut indentation = 0;
-    while lines.len() < 30 {
+    while lines.len() < at_least_lines {
         let mut current = structure[current_ix];
         let prefix = if let NameOrIndex::Name { start, len } = current.name_or_index {
             str::from_utf8(&content[start..start + len.get() as usize])
@@ -40,30 +55,39 @@ fn main() -> anyhow::Result<()> {
         };
         let prefix = format!(
             "{indentation}{prefix}",
-            indentation = "  ".repeat(indentation)
+            indentation = "    ".repeat(indentation)
         );
         match current.ty {
             ObjectType::Array => {
-                lines.push(format!("{prefix}["));
-                current_ix.0 += 1;
-                indentation += 1;
-                continue;
+                if current.expanded {
+                    lines.push(format!("{prefix}["));
+                    current_ix.0 += 1;
+                    indentation += 1;
+                    continue;
+                } else {
+                    lines.push(format!("{prefix}[ %folded% ]"));
+                }
             }
             ObjectType::Structure => {
-                lines.push(format!("{prefix}{{"));
-                current_ix.0 += 1;
-                indentation += 1;
-                continue;
+                if current.expanded {
+                    lines.push(format!("{prefix}{{"));
+                    current_ix.0 += 1;
+                    indentation += 1;
+                    continue;
+                } else {
+                    lines.push(format!("{prefix}{{ %folded% }}"));
+                }
             }
-            _ => (),
+            _ => {
+                lines.push(format!(
+                    "{prefix}{},",
+                    str::from_utf8(
+                        &content[current.source_start..current.source_start + current.source_len]
+                    )
+                    .unwrap()
+                ));
+            }
         }
-        lines.push(format!(
-            "{prefix}{},",
-            str::from_utf8(
-                &content[current.source_start..current.source_start + current.source_len]
-            )
-            .unwrap()
-        ));
         loop {
             if let Some(next) = current.next {
                 current_ix = next;
@@ -86,10 +110,5 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
-    for line in lines {
-        println!("{line}");
-    }
-
-    // println!("objects: {}", structure.list.len() - 1);
-    Ok(())
+    lines
 }

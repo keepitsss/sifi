@@ -31,6 +31,8 @@ pub struct ObjectMeta {
     pub parent: Option<JsonMetadataIndex>,
     pub prev: Option<JsonMetadataIndex>,
     pub next: Option<JsonMetadataIndex>,
+
+    pub expanded: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -279,6 +281,7 @@ impl ParsingContext {
                     parent: self.parent,
                     prev: self.prev,
                     next: None,
+                    expanded: false,
                 };
                 self.state = ParsingState::InStructWithoutName;
                 meta
@@ -299,6 +302,7 @@ impl ParsingContext {
                     parent: self.parent,
                     prev: self.prev,
                     next: None,
+                    expanded: false,
                 }
             }
             ParsingState::TopLevel => {
@@ -312,6 +316,7 @@ impl ParsingContext {
                     parent: self.parent,
                     prev: self.prev,
                     next: None,
+                    expanded: true,
                 }
             }
         }
