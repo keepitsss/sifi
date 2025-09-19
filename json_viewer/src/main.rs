@@ -1,4 +1,4 @@
-use std::{num::NonZeroU32, time::Instant};
+use std::{hint::black_box, num::NonZeroU32, time::Instant};
 
 macro_rules! measured {
     ($name:literal, $code:expr) => {{
@@ -54,7 +54,12 @@ fn main() -> anyhow::Result<()> {
             .into_bytes()
             .leak()
     });
-    let structure = measured!("parsing structure", parse_json_structure(content));
+    let structure = measured!("parsing structure 20 times", {
+        for _ in 1..20 {
+            parse_json_structure(black_box(content));
+        }
+        parse_json_structure(content)
+    });
     println!("objects: {}", structure.len() - 1);
     Ok(())
 }
@@ -147,13 +152,11 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
             }
             b'"' => {
                 let start = cursor;
-                cursor += 1;
                 let len = find_escaped_string_length(unsafe {
                     str::from_utf8_unchecked(&content[cursor..])
                 })
-                .unwrap()
-                    + 2;
-                cursor += len - 1;
+                .unwrap();
+                cursor += len;
 
                 if let Context::InStructWithoutName = context {
                     context = Context::InStructWithName {
@@ -306,20 +309,11 @@ fn finish_object_meta(
     }
 }
 
-/// Gets escaped string without opening quote and returns bytes count to closing quote(including it)
+/// Gets escaped string withopening quote and returns bytes count to closing quote(including it)
 /// Returns None if closing quote not found
 fn find_escaped_string_length(input: &str) -> Option<usize> {
-    let mut last_backslash = false;
-    for (index, &byte) in input.as_bytes().iter().enumerate() {
-        match byte {
-            b'\\' if !last_backslash => {
-                last_backslash = true;
-            }
-            b'"' if !last_backslash => {
-                return Some(index);
-            }
-            _ => last_backslash = false,
-        }
-    }
-    None
+    memchr::memchr_iter(b'"', input.as_bytes().get(0..)?)
+        .skip(1) // opening quote
+        .find(|quote_ix| input.as_bytes()[quote_ix - 1] != b'\\')
+        .map(|quote_ix| quote_ix + 1)
 }
