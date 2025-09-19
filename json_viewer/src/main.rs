@@ -335,11 +335,20 @@ impl ParsingContext {
     }
 }
 
-/// Gets escaped string withopening quote and returns bytes count to closing quote(including it)
+/// Gets escaped string with opening quote and returns bytes count to closing quote(including it)
 /// Returns None if closing quote not found
 fn find_escaped_string_length(input: &str) -> Option<usize> {
-    memchr::memchr_iter(b'"', input.as_bytes().get(0..)?)
-        .skip(1) // opening quote
-        .find(|quote_ix| input.as_bytes()[quote_ix - 1] != b'\\')
-        .map(|quote_ix| quote_ix + 1)
+    let mut last_backslash = false;
+    for (index, &byte) in input.as_bytes().iter().enumerate().skip(1) {
+        match byte {
+            b'\\' if !last_backslash => {
+                last_backslash = true;
+            }
+            b'"' if !last_backslash => {
+                return Some(index + 1);
+            }
+            _ => last_backslash = false,
+        }
+    }
+    None
 }

@@ -5,4 +5,3 @@ edition = "2024"
 
 [dependencies]
 anyhow.workspace = true
-memchr = { version = "2.7.5", default-features = false }
