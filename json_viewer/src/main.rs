@@ -1,4 +1,8 @@
-use std::time::Instant;
+use std::{
+    fs::File,
+    io::{Read, Write},
+    time::Instant,
+};
 
 use json_viewer::*;
 
@@ -25,27 +29,98 @@ fn main() -> anyhow::Result<()> {
         // }
         parse_json_structure(content)
     });
+    let _alternate_screen_wrapper =
+        alternate_screen_wrapper::unix::AlternateScreenOnStdout::enter()?.unwrap();
 
-    // let lines = render_overview(content, structure, 40);
-    let lines = render_data(content, structure, JsonMetadataIndex::new(1));
-    for line in lines {
-        println!("{line}");
+    let mut stdout = std::io::stdout();
+
+    // hide cursor
+    stdout.write_all(b"\x1B[?25l")?;
+    // disable line wrap
+    stdout.write_all(b"\x1B[?7l")?;
+
+    let mut scroll = 1;
+    let mut selection: usize = 1;
+
+    let mut stdin = std::io::stdin();
+    let mut buf = [0; 1024];
+    loop {
+        let height = render_frame(content, &structure, &mut stdout, scroll, selection)?;
+        stdout.flush()?;
+
+        let count = stdin.read(&mut buf)?;
+        if count == 0 {
+            unreachable!("it's okay to delete this line, just checking");
+            // std::thread::sleep_ms(100);
+            // continue;
+        }
+        if buf[..count].contains(&b'q') {
+            break;
+        }
+        let down = buf[..count].iter().filter(|&&key| key == b'j').count();
+        let up = buf[..count].iter().filter(|&&key| key == b'k').count();
+        selection = selection.saturating_add(down);
+        selection = selection.saturating_sub(up);
+        if selection < scroll {
+            scroll = selection;
+        }
+        if selection >= scroll + height as usize {
+            scroll = selection - height as usize + 1;
+        }
     }
 
-    // println!("objects: {}", structure.list.len() - 1);
     Ok(())
+}
+
+/// # Returns terminal height
+fn render_frame(
+    content: &'static [u8],
+    structure: &JsonMetadata,
+    stdout: &mut std::io::Stdout,
+    scroll: usize,
+    selection: usize,
+) -> anyhow::Result<u16> {
+    // clear screen
+    stdout.write_all(b"\x1B[2J")?;
+
+    let rustix::termios::Winsize {
+        ws_row: height,
+        ws_col: _width,
+        ..
+    } = rustix::termios::tcgetwinsize(File::open("/dev/tty")?)?;
+
+    let lines = render_overview(content, structure, height as usize + scroll, selection);
+    for (i, line) in lines
+        .into_iter()
+        .skip(scroll)
+        .enumerate()
+        .take_while(|(i, _)| *i <= height as usize)
+    {
+        let height_gap = 0;
+        let width_gap = 0;
+        // move cursor
+        stdout.write_fmt(format_args!(
+            "\x1B[{};{}H",
+            i as u16 + height_gap + 1, // height
+            width_gap + 1,             // width
+        ))?;
+        stdout.write_all(line.as_bytes())?;
+    }
+    Ok(height)
 }
 
 fn render_overview(
     content: &'static [u8],
-    structure: JsonMetadata,
+    structure: &JsonMetadata,
     at_least_lines: usize,
+    selection: usize,
 ) -> Vec<String> {
     const ITALIC: &str = "\x1b[3m";
     const RED_FG: &str = "\x1b[31m";
     const GREEN_FG: &str = "\x1b[32m";
     const BLUE_FG: &str = "\x1b[34m";
     const CYAN_FG: &str = "\x1b[36m";
+    const MAGENTA_BG: &str = "\x1b[45m";
     const RESET: &str = "\x1b[0m";
 
     let mut lines = Vec::new();
@@ -61,19 +136,30 @@ fn render_overview(
             }
             NameOrIndex::Index(index) => format!("{index}"),
         };
+        let current_line_selected = lines.len() == selection;
+        let red_fg = if current_line_selected { "" } else { RED_FG };
+        let green_fg = if current_line_selected { "" } else { GREEN_FG };
+        let blue_fg = if current_line_selected { "" } else { BLUE_FG };
+        let cyan_fg = if current_line_selected { "" } else { CYAN_FG };
         let mut prefix = format!(
-            "{indentation}{prefix} ",
+            "{selection}{indentation}{prefix} ",
+            selection = if current_line_selected {
+                MAGENTA_BG
+            } else {
+                ""
+            },
             indentation = "  ".repeat(indentation)
         );
         match current.ty {
             ObjectType::Array => {
                 if indentation > 0 {
                     unsafe {
-                        prefix.as_bytes_mut()[indentation * 2 - 2] =
+                        prefix.as_bytes_mut()
+                            [indentation * 2 - 2 + 5 * current_line_selected as usize] =
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
-                lines.push(format!("{prefix}{CYAN_FG}{ITALIC}arr{RESET}"));
+                lines.push(format!("{prefix}{cyan_fg}{ITALIC}arr{RESET}"));
                 if current.expanded {
                     current_ix.0 += 1;
                     indentation += 1;
@@ -83,11 +169,12 @@ fn render_overview(
             ObjectType::Structure => {
                 if indentation > 0 {
                     unsafe {
-                        prefix.as_bytes_mut()[indentation * 2 - 2] =
+                        prefix.as_bytes_mut()
+                            [indentation * 2 - 2 + 5 * current_line_selected as usize] =
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
-                lines.push(format!("{prefix}{CYAN_FG}{ITALIC}obj{RESET}"));
+                lines.push(format!("{prefix}{cyan_fg}{ITALIC}obj{RESET}"));
                 if current.expanded {
                     current_ix.0 += 1;
                     indentation += 1;
@@ -95,14 +182,14 @@ fn render_overview(
                 }
             }
             ObjectType::EmptyArray => {
-                lines.push(format!("{prefix}= []"));
+                lines.push(format!("{prefix}= []{RESET}"));
             }
             ObjectType::EmptyStructure => {
-                lines.push(format!("{prefix}= {{}}"));
+                lines.push(format!("{prefix}= {{}}{RESET}"));
             }
             ObjectType::String => {
                 lines.push(format!(
-                    "{prefix}{GREEN_FG}{}{RESET}",
+                    "{prefix}{green_fg}{}{RESET}",
                     str::from_utf8(
                         &content[current.source_start..current.source_start + current.source_len]
                     )
@@ -110,11 +197,11 @@ fn render_overview(
                 ));
             }
             ObjectType::Null => {
-                lines.push(format!("{prefix}{BLUE_FG}null{RESET}",));
+                lines.push(format!("{prefix}{blue_fg}null{RESET}"));
             }
             ObjectType::Number => {
                 lines.push(format!(
-                    "{prefix}{RED_FG}{}{RESET}",
+                    "{prefix}{red_fg}{}{RESET}",
                     str::from_utf8(
                         &content[current.source_start..current.source_start + current.source_len]
                     )
@@ -149,7 +236,7 @@ fn render_overview(
 
 fn render_data(
     content: &'static [u8],
-    structure: JsonMetadata,
+    structure: &JsonMetadata,
     root_ix: JsonMetadataIndex,
 ) -> Vec<String> {
     const ITALIC: &str = "\x1b[3m";

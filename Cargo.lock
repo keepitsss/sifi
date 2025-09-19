@@ -45,6 +45,7 @@ version = "0.1.0"
 dependencies = [
  "alternate_screen_wrapper",
  "anyhow",
+ "rustix",
 ]
 
 [[package]]
