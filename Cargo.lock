@@ -4,18 +4,18 @@ version = 4
 
 [[package]]
 name = "alternate_screen_wrapper"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bd69695e24bf01da70eb4b3b6cde8f44dd19f25f9a2a44d9fbea8038223dad1"
+checksum = "ec3dfd7a62bbcab172864f99fd412837eff38384884fb767ffda875fb5061cdf"
 dependencies = [
  "rustix",
 ]
 
 [[package]]
 name = "anyhow"
-version = "1.0.99"
+version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0674a1ddeecb70197781e945de4b3b8ffb61fa939a5597bcf48503737663100"
+checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "bitflags"

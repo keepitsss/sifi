@@ -41,7 +41,7 @@ impl JsonMetadataIndex {
     pub fn new(index: usize) -> Self {
         JsonMetadataIndex(u32::try_from(index).unwrap())
     }
-    fn get(self) -> usize {
+    pub fn get(self) -> usize {
         self.0 as usize
     }
 }
@@ -55,6 +55,52 @@ impl JsonMetadata {
         let i = self.list.len();
         self.list.push(value);
         JsonMetadataIndex::new(i)
+    }
+    pub fn next_visible(&self, index: JsonMetadataIndex) -> Option<JsonMetadataIndex> {
+        let object = self[index];
+        match object.ty {
+            ObjectType::Array | ObjectType::Structure if object.expanded => {
+                Some(JsonMetadataIndex::new(index.get() + 1))
+            }
+            _ => self.next_no_children(index),
+        }
+    }
+    fn next_no_children(&self, index: JsonMetadataIndex) -> Option<JsonMetadataIndex> {
+        let object = self[index];
+        if let Some(next) = object.next {
+            Some(next)
+        } else {
+            self.next_no_children(object.parent?)
+        }
+    }
+    pub fn prev_visible(&self, index: JsonMetadataIndex) -> Option<JsonMetadataIndex> {
+        let object = self[index];
+        if let Some(prev) = object.prev {
+            Some(self.last_in_childrens(prev))
+        } else {
+            object.parent
+        }
+    }
+    fn last_in_childrens(&self, index: JsonMetadataIndex) -> JsonMetadataIndex {
+        let object = self[index];
+        match object.ty {
+            ObjectType::Array | ObjectType::Structure if object.expanded => {
+                let mut last = JsonMetadataIndex::new(index.get() + 1);
+
+                while let Some(next) = self[last].next {
+                    last = next;
+                }
+                self.last_in_childrens(last)
+            }
+            _ => index,
+        }
+    }
+    pub fn depth(&self, index: JsonMetadataIndex) -> usize {
+        if let Some(parent) = self[index].parent {
+            self.depth(parent) + 1
+        } else {
+            0
+        }
     }
 }
 impl Index<JsonMetadataIndex> for JsonMetadata {
@@ -256,6 +302,7 @@ impl ParsingContext {
     fn push_object_meta(&mut self, meta: ObjectMeta) -> JsonMetadataIndex {
         let new_index = self.output.push(meta);
         if let Some(prev) = self.prev {
+            assert_ne!(prev, new_index);
             self.output[prev].next = Some(new_index);
         }
         self.prev = Some(new_index);

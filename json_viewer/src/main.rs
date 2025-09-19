@@ -39,8 +39,9 @@ fn main() -> anyhow::Result<()> {
     // disable line wrap
     stdout.write_all(b"\x1B[?7l")?;
 
-    let mut scroll = 0;
-    let mut selection = 0;
+    let mut scroll = JsonMetadataIndex::new(0);
+    let mut selection = JsonMetadataIndex::new(0);
+    let mut selection_relative = 0;
 
     let mut stdin = std::io::stdin();
     let mut buf = [0; 1024];
@@ -57,15 +58,32 @@ fn main() -> anyhow::Result<()> {
         if buf[..count].contains(&b'q') {
             break;
         }
-        let down = buf[..count].iter().filter(|&&key| key == b'j').count();
-        let up = buf[..count].iter().filter(|&&key| key == b'k').count();
-        selection = selection.saturating_add(down);
-        selection = selection.saturating_sub(up);
-        if selection < scroll {
-            scroll = selection;
-        }
-        if selection >= scroll + height as usize {
-            scroll = selection - height as usize + 1;
+        for &key in &buf[..count] {
+            match key {
+                b'j' => {
+                    let Some(index) = structure.next_visible(selection) else {
+                        continue;
+                    };
+                    selection_relative += 1;
+                    selection = index;
+                }
+                b'k' => {
+                    let Some(index) = structure.prev_visible(selection) else {
+                        continue;
+                    };
+                    selection_relative -= 1;
+                    selection = index;
+                }
+                _ => (),
+            }
+            while selection_relative >= height as i32 {
+                scroll = structure.next_visible(scroll).unwrap();
+                selection_relative -= 1;
+            }
+            while selection_relative < 0 {
+                scroll = structure.prev_visible(scroll).unwrap();
+                selection_relative += 1;
+            }
         }
     }
 
@@ -77,8 +95,8 @@ fn render_frame(
     content: &'static [u8],
     structure: &JsonMetadata,
     stdout: &mut std::io::Stdout,
-    scroll: usize,
-    selection: usize,
+    scroll: JsonMetadataIndex,
+    selection: JsonMetadataIndex,
 ) -> anyhow::Result<u16> {
     // clear screen
     stdout.write_all(b"\x1B[2J")?;
@@ -89,13 +107,8 @@ fn render_frame(
         ..
     } = rustix::termios::tcgetwinsize(File::open("/dev/tty")?)?;
 
-    let lines = render_overview(content, structure, height as usize + scroll, selection);
-    for (i, line) in lines
-        .into_iter()
-        .skip(scroll)
-        .enumerate()
-        .take_while(|(i, _)| *i <= height as usize)
-    {
+    let lines = render_overview(content, structure, scroll, height as usize, selection);
+    for (i, line) in lines.into_iter().enumerate() {
         let height_gap = 0;
         let width_gap = 0;
         // move cursor
@@ -136,13 +149,14 @@ const RESET: &str = "\x1b[0m";
 fn render_overview(
     content: &'static [u8],
     structure: &JsonMetadata,
-    at_least_lines: usize,
-    selection: usize,
+    start: JsonMetadataIndex,
+    lines_needed: usize,
+    selection: JsonMetadataIndex,
 ) -> Vec<String> {
     let mut lines = Vec::new();
-    let mut current_ix = JsonMetadataIndex::new(0);
-    let mut indentation = 0;
-    while lines.len() < at_least_lines {
+    let mut current_ix = start;
+    let mut indentation = structure.depth(start);
+    'outer: while lines.len() < lines_needed {
         let mut current = structure[current_ix];
         let prefix = match current.name_or_index {
             NameOrIndex::Name { start, len } => {
@@ -152,7 +166,7 @@ fn render_overview(
             }
             NameOrIndex::Index(index) => format!("{index}"),
         };
-        let current_line_selected = lines.len() == selection;
+        let current_line_selected = current_ix == selection;
         let red_fg = if current_line_selected { "" } else { RED_FG };
         let green_fg = if current_line_selected { "" } else { GREEN_FG };
         let blue_fg = if current_line_selected { "" } else { BLUE_FG };
@@ -239,7 +253,7 @@ fn render_overview(
                 indentation -= 1;
                 current = parent;
             } else {
-                break;
+                break 'outer;
             }
         }
     }
