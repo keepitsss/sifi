@@ -11,16 +11,15 @@ macro_rules! measured {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[repr(u64)]
 enum ObjectType {
-    String = 1,
-    Bool = 2,
-    Number = 3,
-    EmptyArray = 4,
-    EmptyStructure = 5,
-    Array = 6,
-    Structure = 7,
-    Null = 8,
+    String,
+    Bool,
+    Number,
+    EmptyArray,
+    EmptyStructure,
+    Array,
+    Structure,
+    Null,
 }
 
 #[derive(Debug, Clone, Copy)]
