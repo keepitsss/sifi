@@ -328,7 +328,7 @@ impl ParsingContext {
                     parent: self.parent,
                     prev: self.prev,
                     next: None,
-                    expanded: true,
+                    expanded: false,
                 };
                 self.state = ParsingState::InStructWithoutName;
                 meta
@@ -349,7 +349,7 @@ impl ParsingContext {
                     parent: self.parent,
                     prev: self.prev,
                     next: None,
-                    expanded: true,
+                    expanded: false,
                 }
             }
             ParsingState::TopLevel => {
