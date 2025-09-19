@@ -39,8 +39,8 @@ fn main() -> anyhow::Result<()> {
     // disable line wrap
     stdout.write_all(b"\x1B[?7l")?;
 
-    let mut scroll = 1;
-    let mut selection: usize = 1;
+    let mut scroll = 0;
+    let mut selection = 0;
 
     let mut stdin = std::io::stdin();
     let mut buf = [0; 1024];
@@ -85,7 +85,7 @@ fn render_frame(
 
     let rustix::termios::Winsize {
         ws_row: height,
-        ws_col: _width,
+        ws_col: width,
         ..
     } = rustix::termios::tcgetwinsize(File::open("/dev/tty")?)?;
 
@@ -105,24 +105,40 @@ fn render_frame(
             width_gap + 1,             // width
         ))?;
         stdout.write_all(line.as_bytes())?;
+        let max_width = (width * 2 / 5) as usize;
+        stdout.write_all(&b" ".repeat(max_width))?;
+        // move cursor
+        stdout.write_fmt(format_args!(
+            "\x1B[{};{}H",
+            i as u16 + height_gap + 1, // height
+            max_width + width_gap + 1, // width
+        ))?;
+        stdout.write_all(RESET.as_bytes())?;
+        // move cursor
+        stdout.write_fmt(format_args!(
+            "\x1B[{};{}H",
+            i as u16 + height_gap + 1, // height
+            max_width + width_gap + 1, // width
+        ))?;
+        stdout.write_all(b"\x1b[K|")?;
     }
     Ok(height)
 }
 
+const ITALIC: &str = "\x1b[3m";
+const RED_FG: &str = "\x1b[31m";
+const GREEN_FG: &str = "\x1b[32m";
+const BLUE_FG: &str = "\x1b[34m";
+const CYAN_FG: &str = "\x1b[36m";
+const BLUE_BG: &str = "\x1b[44m";
+// const MAGENTA_BG: &str = "\x1b[45m";
+const RESET: &str = "\x1b[0m";
 fn render_overview(
     content: &'static [u8],
     structure: &JsonMetadata,
     at_least_lines: usize,
     selection: usize,
 ) -> Vec<String> {
-    const ITALIC: &str = "\x1b[3m";
-    const RED_FG: &str = "\x1b[31m";
-    const GREEN_FG: &str = "\x1b[32m";
-    const BLUE_FG: &str = "\x1b[34m";
-    const CYAN_FG: &str = "\x1b[36m";
-    const MAGENTA_BG: &str = "\x1b[45m";
-    const RESET: &str = "\x1b[0m";
-
     let mut lines = Vec::new();
     let mut current_ix = JsonMetadataIndex::new(0);
     let mut indentation = 0;
@@ -143,11 +159,7 @@ fn render_overview(
         let cyan_fg = if current_line_selected { "" } else { CYAN_FG };
         let mut prefix = format!(
             "{selection}{indentation}{prefix} ",
-            selection = if current_line_selected {
-                MAGENTA_BG
-            } else {
-                ""
-            },
+            selection = if current_line_selected { BLUE_BG } else { "" },
             indentation = "  ".repeat(indentation)
         );
         match current.ty {
@@ -159,7 +171,7 @@ fn render_overview(
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
-                lines.push(format!("{prefix}{cyan_fg}{ITALIC}arr{RESET}"));
+                lines.push(format!("{prefix}{cyan_fg}{ITALIC}arr"));
                 if current.expanded {
                     current_ix.0 += 1;
                     indentation += 1;
@@ -174,7 +186,7 @@ fn render_overview(
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
-                lines.push(format!("{prefix}{cyan_fg}{ITALIC}obj{RESET}"));
+                lines.push(format!("{prefix}{cyan_fg}{ITALIC}obj"));
                 if current.expanded {
                     current_ix.0 += 1;
                     indentation += 1;
@@ -182,14 +194,14 @@ fn render_overview(
                 }
             }
             ObjectType::EmptyArray => {
-                lines.push(format!("{prefix}= []{RESET}"));
+                lines.push(format!("{prefix}= []"));
             }
             ObjectType::EmptyStructure => {
-                lines.push(format!("{prefix}= {{}}{RESET}"));
+                lines.push(format!("{prefix}= {{}}"));
             }
             ObjectType::String => {
                 lines.push(format!(
-                    "{prefix}{green_fg}{}{RESET}",
+                    "{prefix}{green_fg}{}",
                     str::from_utf8(
                         &content[current.source_start..current.source_start + current.source_len]
                     )
@@ -197,11 +209,11 @@ fn render_overview(
                 ));
             }
             ObjectType::Null => {
-                lines.push(format!("{prefix}{blue_fg}null{RESET}"));
+                lines.push(format!("{prefix}{blue_fg}null"));
             }
             ObjectType::Number => {
                 lines.push(format!(
-                    "{prefix}{red_fg}{}{RESET}",
+                    "{prefix}{red_fg}{}",
                     str::from_utf8(
                         &content[current.source_start..current.source_start + current.source_len]
                     )
