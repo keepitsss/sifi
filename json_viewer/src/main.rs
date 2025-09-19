@@ -22,15 +22,27 @@ enum ObjectType {
     Structure = 7,
     Null = 8,
 }
+
+#[derive(Debug, Clone, Copy)]
+struct JsonStructureIndex(u32);
+impl JsonStructureIndex {
+    fn new(index: usize) -> Self {
+        JsonStructureIndex(u32::try_from(index).unwrap())
+    }
+    fn get(self) -> usize {
+        self.0 as usize
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct ObjectMeta {
     name_or_index: NameOrIndex,
     ty: ObjectType,
     source_start: usize,
     source_len: usize,
-    parent: Option<usize>,
-    prev: Option<usize>,
-    next: Option<usize>,
+    parent: Option<JsonStructureIndex>,
+    prev: Option<JsonStructureIndex>,
+    next: Option<JsonStructureIndex>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -115,7 +127,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
             b']' => {
                 cursor += 1;
 
-                let parent_ref_mut = &mut tree[parent.unwrap()];
+                let parent_ref_mut = &mut tree[parent.unwrap().get()];
                 parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
@@ -134,7 +146,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
             b'}' => {
                 cursor += 1;
 
-                let parent_ref_mut = &mut tree[parent.unwrap()];
+                let parent_ref_mut = &mut tree[parent.unwrap().get()];
                 parent_ref_mut.source_len = cursor - parent_ref_mut.source_start;
                 match parent_ref_mut.name_or_index {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
@@ -249,8 +261,10 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                 todo!(
                     "unknown character '{}' in symbols '{}'",
                     c as char,
-                    str::from_utf8(&content[tree[parent.unwrap()].source_start..=cursor + 10])
-                        .unwrap()
+                    str::from_utf8(
+                        &content[tree[parent.unwrap().get()].source_start..=cursor + 10]
+                    )
+                    .unwrap()
                 )
             }
         }
@@ -259,13 +273,13 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
 
 fn push_object_meta(
     tree: &mut Vec<ObjectMeta>,
-    prev: &mut Option<usize>,
+    prev: &mut Option<JsonStructureIndex>,
     meta: ObjectMeta,
-) -> usize {
-    let new_index = tree.len();
+) -> JsonStructureIndex {
+    let new_index = JsonStructureIndex::new(tree.len());
     tree.push(meta);
     if let Some(prev) = *prev {
-        tree[prev].next = Some(new_index);
+        tree[prev.get()].next = Some(new_index);
     }
     *prev = Some(new_index);
     new_index
@@ -273,13 +287,13 @@ fn push_object_meta(
 
 fn finish_object_meta(
     tree: &mut [ObjectMeta],
-    parent: Option<usize>,
+    parent: Option<JsonStructureIndex>,
     context: &mut Context,
     meta_prototype: impl Fn(NameOrIndex) -> ObjectMeta,
 ) -> ObjectMeta {
     match context {
         Context::InStructWithName { start, len } => {
-            let parent = &mut tree[parent.unwrap()].ty;
+            let parent = &mut tree[parent.unwrap().get()].ty;
             assert!(*parent == ObjectType::EmptyStructure || *parent == ObjectType::Structure);
             *parent = ObjectType::Structure;
 
@@ -293,7 +307,7 @@ fn finish_object_meta(
         }
         Context::InStructWithoutName => todo!(),
         Context::InArray { index } => {
-            let parent = &mut tree[parent.unwrap()].ty;
+            let parent = &mut tree[parent.unwrap().get()].ty;
             assert!(*parent == ObjectType::EmptyArray || *parent == ObjectType::Array);
             *parent = ObjectType::Array;
 
