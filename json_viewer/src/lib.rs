@@ -17,7 +17,7 @@ pub enum ObjectType {
 
 #[derive(Debug, Clone, Copy)]
 pub enum NameOrIndex {
-    Name { start: u64, len: NonZeroU32 },
+    Name { start: usize, len: NonZeroU32 },
     Index(u64),
 }
 const _: () = assert!(size_of::<NameOrIndex>() == 2 * size_of::<u64>());
@@ -34,9 +34,9 @@ pub struct ObjectMeta {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct JsonMetadataIndex(u32);
+pub struct JsonMetadataIndex(pub u32);
 impl JsonMetadataIndex {
-    fn new(index: usize) -> Self {
+    pub fn new(index: usize) -> Self {
         JsonMetadataIndex(u32::try_from(index).unwrap())
     }
     fn get(self) -> usize {
@@ -66,11 +66,22 @@ impl IndexMut<JsonMetadataIndex> for JsonMetadata {
         &mut self.list[index.get()]
     }
 }
+impl Index<usize> for JsonMetadata {
+    type Output = ObjectMeta;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.list[index]
+    }
+}
+impl IndexMut<usize> for JsonMetadata {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.list[index]
+    }
+}
 
 #[derive(Debug, Default)]
 enum ParsingState {
     InStructWithName {
-        start: u64,
+        start: usize,
         len: NonZeroU32,
     },
     InStructWithoutName,
@@ -163,7 +174,7 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
 
                 if let ParsingState::InStructWithoutName = ctx.state {
                     ctx.state = ParsingState::InStructWithName {
-                        start: ctx.cursor as u64,
+                        start: ctx.cursor,
                         len: NonZeroU32::new(u32::try_from(len).unwrap()).unwrap(),
                     };
                     ctx.cursor += len;
