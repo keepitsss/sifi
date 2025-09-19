@@ -25,10 +25,11 @@ enum ObjectType {
 #[derive(Debug, Clone, Copy)]
 struct ObjectMeta {
     name_or_index: NameOrIndex,
-    parent: Option<usize>,
     ty: ObjectType,
     source_start: usize,
     source_len: usize,
+    parent: Option<usize>,
+    prev: Option<usize>,
     next: Option<usize>,
 }
 
@@ -77,11 +78,13 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     ty: ObjectType::EmptyArray,
                     source_start: cursor,
                     source_len: 0,
-                    next: prev,
+                    prev,
+                    next: None,
                 };
                 let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
                 let new_index = push_object_meta(&mut tree, &mut prev, meta);
                 parent = Some(new_index);
+                prev = None;
                 context = Context::InArray { index: 0 };
 
                 cursor += 1;
@@ -93,11 +96,13 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     ty: ObjectType::EmptyStructure,
                     source_start: cursor,
                     source_len: 0,
+                    prev,
                     next: None,
                 };
                 let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
                 let new_index = push_object_meta(&mut tree, &mut prev, meta);
                 parent = Some(new_index);
+                prev = None;
                 context = Context::InStructWithoutName;
 
                 cursor += 1;
@@ -111,6 +116,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
                     NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
                 }
+                prev = parent;
                 parent = parent_ref_mut.parent;
 
                 if content.get(cursor) == Some(&b',') {
@@ -129,6 +135,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     NameOrIndex::Name { .. } => context = Context::InStructWithoutName,
                     NameOrIndex::Index(index) => context = Context::InArray { index: index + 1 },
                 }
+                prev = parent;
                 parent = parent_ref_mut.parent;
 
                 if content.get(cursor) == Some(&b',') {
@@ -166,6 +173,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                         ty: ObjectType::String,
                         source_start: start,
                         source_len: len,
+                        prev,
                         next: None,
                     };
                     let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
@@ -188,6 +196,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     ty: ObjectType::Null,
                     source_start: cursor,
                     source_len: 4,
+                    prev,
                     next: None,
                 };
                 let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
@@ -220,6 +229,7 @@ fn parse_json_structure(content: &'static [u8]) -> Vec<ObjectMeta> {
                     ty: ObjectType::Number,
                     source_start: start,
                     source_len: cursor - start,
+                    prev,
                     next: None,
                 };
                 let meta = finish_object_meta(&mut tree, parent, &mut context, meta_prototype);
