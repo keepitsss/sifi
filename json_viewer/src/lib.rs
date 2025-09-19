@@ -35,7 +35,7 @@ pub struct ObjectMeta {
     pub expanded: bool,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JsonMetadataIndex(pub u32);
 impl JsonMetadataIndex {
     pub fn new(index: usize) -> Self {
