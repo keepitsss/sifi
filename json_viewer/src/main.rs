@@ -313,9 +313,6 @@ fn render_data(
     let mut current_ix = root_ix;
     let mut indentation = 0;
     'outer: loop {
-        if lines.len() > 40 {
-            break;
-        }
         let mut current = structure[current_ix];
         let prefix = if let NameOrIndex::Name { start, len } = current.name_or_index {
             format!(
