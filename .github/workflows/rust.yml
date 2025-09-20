@@ -1,0 +1,40 @@
+name: Rust
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Linter
+        run: cargo clippy -- -Dwarnings
+
+  build-json-viewer:
+    runs-on: ubuntu-latest
+    # needs: check
+    outputs:
+      executable_id: ${{ steps.upload_executable.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cd json_viewer && cargo build --release
+      - name: Upload build artifact
+        id: upload_executable
+        uses: actions/upload-artifact@v4.6.1
+        with:
+          name: json_viewer-linux-x86_64
+          path: target/release/json_viewer
+
+      - name: Output artifact IDs
+        run: |
+          echo 'Build artifact ID is ${{ steps.upload_executable.outputs.artifact-id }}'

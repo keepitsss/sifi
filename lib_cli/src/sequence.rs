@@ -1,4 +1,3 @@
-
 use super::*;
 
 pub struct Sequence<ITEMS>(pub ITEMS);
