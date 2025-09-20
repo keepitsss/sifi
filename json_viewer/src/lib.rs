@@ -163,6 +163,9 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                 ctx.state = ParsingState::InArray { index: 0 };
 
                 ctx.cursor += 1;
+                while content[ctx.cursor].is_ascii_whitespace() {
+                    ctx.cursor += 1;
+                }
             }
             b'{' => {
                 let new_index = ctx.add_object_meta(ObjectType::EmptyStructure, 0);
@@ -171,6 +174,9 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                 ctx.state = ParsingState::InStructWithoutName;
 
                 ctx.cursor += 1;
+                while content[ctx.cursor].is_ascii_whitespace() {
+                    ctx.cursor += 1;
+                }
             }
             b']' => {
                 ctx.cursor += 1;
@@ -189,7 +195,10 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                 if content.get(ctx.cursor) == Some(&b',') {
                     ctx.cursor += 1;
                 }
-                while content.get(ctx.cursor) == Some(&b' ') {
+                while content
+                    .get(ctx.cursor)
+                    .is_some_and(|c| c.is_ascii_whitespace())
+                {
                     ctx.cursor += 1;
                 }
             }
@@ -210,7 +219,10 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                 if content.get(ctx.cursor) == Some(&b',') {
                     ctx.cursor += 1;
                 }
-                while content.get(ctx.cursor) == Some(&b' ') {
+                while content
+                    .get(ctx.cursor)
+                    .is_some_and(|c| c.is_ascii_whitespace())
+                {
                     ctx.cursor += 1;
                 }
             }
@@ -229,7 +241,7 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
 
                     assert_eq!(content[ctx.cursor], b':');
                     ctx.cursor += 1;
-                    while content[ctx.cursor] == b' ' {
+                    while content[ctx.cursor].is_ascii_whitespace() {
                         ctx.cursor += 1;
                     }
                 } else {
@@ -239,22 +251,9 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                     if content[ctx.cursor] == b',' {
                         ctx.cursor += 1;
                     }
-                    while content[ctx.cursor] == b' ' {
+                    while content[ctx.cursor].is_ascii_whitespace() {
                         ctx.cursor += 1;
                     }
-                }
-            }
-            b'n' => {
-                assert_eq!(&content[ctx.cursor..ctx.cursor + 4], b"null");
-
-                let _ = ctx.add_object_meta(ObjectType::Null, 4);
-
-                ctx.cursor += 4;
-                if content[ctx.cursor] == b',' {
-                    ctx.cursor += 1;
-                }
-                while content[ctx.cursor] == b' ' {
-                    ctx.cursor += 1;
                 }
             }
             b'-' | b'0'..=b'9' => {
@@ -275,13 +274,52 @@ pub fn parse_json_structure(content: &'static [u8]) -> JsonMetadata {
                 if content[ctx.cursor] == b',' {
                     ctx.cursor += 1;
                 }
-                while content[ctx.cursor] == b' ' {
+                while content[ctx.cursor].is_ascii_whitespace() {
+                    ctx.cursor += 1;
+                }
+            }
+            b'n' => {
+                assert_eq!(&content[ctx.cursor..ctx.cursor + 4], b"null");
+
+                let _ = ctx.add_object_meta(ObjectType::Null, 4);
+
+                ctx.cursor += 4;
+                if content[ctx.cursor] == b',' {
+                    ctx.cursor += 1;
+                }
+                while content[ctx.cursor].is_ascii_whitespace() {
+                    ctx.cursor += 1;
+                }
+            }
+            b't' => {
+                assert_eq!(&content[ctx.cursor..ctx.cursor + 4], b"true");
+
+                let _ = ctx.add_object_meta(ObjectType::Bool, 4);
+
+                ctx.cursor += 4;
+                if content[ctx.cursor] == b',' {
+                    ctx.cursor += 1;
+                }
+                while content[ctx.cursor].is_ascii_whitespace() {
+                    ctx.cursor += 1;
+                }
+            }
+            b'f' => {
+                assert_eq!(&content[ctx.cursor..ctx.cursor + 5], b"false");
+
+                let _ = ctx.add_object_meta(ObjectType::Bool, 5);
+
+                ctx.cursor += 5;
+                if content[ctx.cursor] == b',' {
+                    ctx.cursor += 1;
+                }
+                while content[ctx.cursor].is_ascii_whitespace() {
                     ctx.cursor += 1;
                 }
             }
             c => {
                 todo!(
-                    "unknown character '{}' in symbols '{}'",
+                    "unknown character {:?} in symbols {:?}",
                     c as char,
                     str::from_utf8(
                         &content[ctx.output[ctx.parent.unwrap()].source_start..=ctx.cursor + 10]

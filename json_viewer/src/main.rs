@@ -17,10 +17,10 @@ macro_rules! measured {
 }
 
 fn main() -> anyhow::Result<()> {
+    let args = std::env::args().collect::<Vec<_>>();
+    assert!(args.len() == 2);
     let content: &'static [u8] = measured!("reading file", {
-        std::fs::read_to_string("business-licences.json")?
-            .into_bytes()
-            .leak()
+        std::fs::read_to_string(&args[1])?.into_bytes().leak()
     });
     let mut structure = measured!("parsing structure", {
         // use std::hint::black_box;
@@ -188,9 +188,18 @@ fn render_overview(
         let green_fg = if current_line_selected { "" } else { GREEN_FG };
         let blue_fg = if current_line_selected { "" } else { BLUE_FG };
         let cyan_fg = if current_line_selected { "" } else { CYAN_FG };
+        let bool_style = if current_line_selected {
+            String::new()
+        } else {
+            ITALIC.to_owned() + RED_FG
+        };
         let mut prefix = format!(
             "{selection}{indentation}{prefix} ",
-            selection = if current_line_selected { BLUE_BG } else { "" },
+            selection = if current_line_selected {
+                BLUE_BG
+            } else {
+                RESET
+            },
             indentation = "  ".repeat(indentation)
         );
         match current.ty {
@@ -198,7 +207,7 @@ fn render_overview(
                 if indentation > 0 {
                     unsafe {
                         prefix.as_bytes_mut()
-                            [indentation * 2 - 2 + 5 * current_line_selected as usize] =
+                            [(indentation + 1) * 2 + current_line_selected as usize] =
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
@@ -213,7 +222,7 @@ fn render_overview(
                 if indentation > 0 {
                     unsafe {
                         prefix.as_bytes_mut()
-                            [indentation * 2 - 2 + 5 * current_line_selected as usize] =
+                            [(indentation + 1) * 2 + current_line_selected as usize] =
                             if current.expanded { b'-' } else { b'+' };
                     }
                 }
@@ -251,9 +260,9 @@ fn render_overview(
                     .unwrap()
                 ));
             }
-            _ => {
+            ObjectType::Bool => {
                 lines.push(format!(
-                    "{prefix}{}",
+                    "{prefix}{bool_style}{}",
                     str::from_utf8(
                         &content[current.source_start..current.source_start + current.source_len]
                     )
@@ -284,14 +293,12 @@ fn render_data(
 ) -> Vec<String> {
     if let Some(style) = match structure[root_ix].ty {
         ObjectType::Array | ObjectType::Structure => None,
-        ObjectType::EmptyArray => Some(""),
-        ObjectType::EmptyStructure => Some(""),
-        ObjectType::String => Some(GREEN_FG),
-        ObjectType::Bool => {
-            todo!();
-        }
-        ObjectType::Number => Some(RED_FG),
-        ObjectType::Null => Some(BLUE_FG),
+        ObjectType::EmptyArray => Some("".into()),
+        ObjectType::EmptyStructure => Some("".into()),
+        ObjectType::String => Some(GREEN_FG.into()),
+        ObjectType::Bool => Some(RED_FG.to_owned() + ITALIC),
+        ObjectType::Number => Some(RED_FG.into()),
+        ObjectType::Null => Some(BLUE_FG.into()),
     } {
         return vec![format!(
             "{style}{}",
@@ -340,9 +347,7 @@ fn render_data(
             ObjectType::EmptyArray => "",
             ObjectType::EmptyStructure => "",
             ObjectType::String => GREEN_FG,
-            ObjectType::Bool => {
-                todo!();
-            }
+            ObjectType::Bool => &(ITALIC.to_owned() + RED_FG),
             ObjectType::Number => RED_FG,
             ObjectType::Null => BLUE_FG,
         };
