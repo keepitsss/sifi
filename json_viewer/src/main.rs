@@ -291,30 +291,14 @@ fn render_data(
     structure: &JsonMetadata,
     root_ix: JsonMetadataIndex,
 ) -> Vec<String> {
-    if let Some(style) = match structure[root_ix].ty {
-        ObjectType::Array | ObjectType::Structure => None,
-        ObjectType::EmptyArray => Some("".into()),
-        ObjectType::EmptyStructure => Some("".into()),
-        ObjectType::String => Some(GREEN_FG.into()),
-        ObjectType::Bool => Some(RED_FG.to_owned() + ITALIC),
-        ObjectType::Number => Some(RED_FG.into()),
-        ObjectType::Null => Some(BLUE_FG.into()),
-    } {
-        return vec![format!(
-            "{style}{}",
-            str::from_utf8(
-                &content[structure[root_ix].source_start
-                    ..structure[root_ix].source_start + structure[root_ix].source_len]
-            )
-            .unwrap(),
-        )];
-    }
     let mut lines = Vec::new();
     let mut current_ix = root_ix;
     let mut indentation = 0;
     'outer: loop {
         let mut current = structure[current_ix];
-        let prefix = if let NameOrIndex::Name { start, len } = current.name_or_index {
+        let prefix = if current_ix == root_ix {
+            String::new()
+        } else if let NameOrIndex::Name { start, len } = current.name_or_index {
             format!(
                 "{YELLOW_FG}{ITALIC}{}{RESET}: ",
                 str::from_utf8(&content[start..start + len.get() as usize])
@@ -354,7 +338,11 @@ fn render_data(
                 &content[current.source_start..current.source_start + current.source_len]
             )
             .unwrap(),
-            if current.next.is_some() { "," } else { "" }
+            if current.next.is_some() && current_ix != root_ix {
+                ","
+            } else {
+                ""
+            }
         ));
         loop {
             if current_ix == root_ix {
@@ -367,14 +355,16 @@ fn render_data(
                 indentation -= 1;
                 match parent.ty {
                     ObjectType::Array => {
+                        let closing = if current_ix == root_ix { "]," } else { "]" };
                         lines.push(format!(
-                            "{indentation}],",
+                            "{indentation}{closing}",
                             indentation = "  ".repeat(indentation)
                         ));
                     }
                     ObjectType::Structure => {
+                        let closing = if current_ix == root_ix { "}," } else { "}" };
                         lines.push(format!(
-                            "{indentation}}},",
+                            "{indentation}{closing}",
                             indentation = "  ".repeat(indentation)
                         ));
                     }
