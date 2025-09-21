@@ -9,7 +9,7 @@ env:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -19,7 +19,7 @@ jobs:
         run: cargo clippy -- -Dwarnings
 
   build-json-viewer:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     # needs: check
     outputs:
       executable_id: ${{ steps.upload_executable.outputs.artifact-id }}
