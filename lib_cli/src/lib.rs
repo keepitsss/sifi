@@ -18,7 +18,7 @@ impl ParsingContext {
     }
 }
 pub trait Opt: Sized {
-    /// Returns whether progess is made
+    /// Returns whether progress is made
     fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool>;
 
     fn finalize(this: Option<Self>) -> Result<Self>;

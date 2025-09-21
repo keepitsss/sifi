@@ -352,7 +352,7 @@ impl FlowContent for Heading<'_> {}
 impl HeadingContent for Heading<'_> {}
 // # Safety
 // Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableConent for Heading<'_> {}
+unsafe impl PalpableContent for Heading<'_> {}
 impl<'re> Heading<'re> {
     pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
@@ -524,7 +524,7 @@ impl FlowContent for Article<'_> {}
 impl SectioningContent for Article<'_> {}
 // # Safety
 // Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableConent for Article<'_> {}
+unsafe impl PalpableContent for Article<'_> {}
 impl<'re> Article<'re> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
@@ -568,7 +568,7 @@ impl FlowContent for Section<'_> {}
 impl SectioningContent for Section<'_> {}
 // # Safety
 // Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableConent for Section<'_> {}
+unsafe impl PalpableContent for Section<'_> {}
 impl<'re> Section<'re> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
@@ -612,7 +612,7 @@ impl FlowContent for Navigation<'_> {}
 impl SectioningContent for Navigation<'_> {}
 // # Safety
 // Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableConent for Navigation<'_> {}
+unsafe impl PalpableContent for Navigation<'_> {}
 impl<'re> Navigation<'re> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
@@ -656,7 +656,7 @@ impl FlowContent for Aside<'_> {}
 impl SectioningContent for Aside<'_> {}
 // # Safety
 // Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableConent for Aside<'_> {}
+unsafe impl PalpableContent for Aside<'_> {}
 impl<'re> Aside<'re> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));

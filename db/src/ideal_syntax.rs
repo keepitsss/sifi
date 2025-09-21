@@ -15,7 +15,7 @@
 ///
 /// Table could be server-owned(by default) and client-owned.
 /// If server-owned, only client from you backend could modify it.
-/// If client-owned, any connected cliend could modify data about themselfes.
+/// If client-owned, any connected cliend could modify data about themselves.
 ///
 /// Row level security available. It allows clients to get mutable
 /// connection to part of table with given PRIMARY KEY, so multiple
@@ -28,7 +28,7 @@
 ///
 /// When client want to make transaction:
 /// 1. server locks table/tables(or part of it)
-/// 2. client fully syncronizes to server
+/// 2. client fully synchronizes to server
 /// 3. client interact with his local tables
 /// 4. client send all modifications to server
 /// 5. server saves modifications
@@ -87,12 +87,12 @@ fn main() -> anyhow::Result<()> {
     for strange_mark in strange_marks {
         marks.select_mut().where(query!("id == {}", strange_mark.id)).update("value = 2")?;
         // or mb
-        marks.mut_key("id", strange_mark.id).update("value = 2")?; // can't modify selected propery when using key method
+        marks.mut_key("id", strange_mark.id).update("value = 2")?; // can't modify selected property when using key method
         // eq to
         let mut ref_to_column = marks.mut_key("id", strange_mark.id);
         let val = ref_to_column.get()?;
         val.value = 2;
-        ref_to_column.set(val); // logical alias to ref_to_columnt.update("id = _; subject_id = _;...")
+        ref_to_column.set(val); // logical alias to ref_to_column.update("id = _; subject_id = _;...")
     }
 
     tr.commit()?;

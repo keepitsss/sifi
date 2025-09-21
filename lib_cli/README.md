@@ -2,7 +2,7 @@
 
 Rust library for Command Line Interface, that is small(500 LoC) and simple.
 
-Only depenency is anyhow.
+Only dependency is anyhow.
 
 # Library overview
 
@@ -45,12 +45,12 @@ trait ParsingRouter {
 
 /// Actual parsing goes here
 pub trait Opt: Sized {
-    /// returns whether progess is made
+    /// returns whether progress is made
     fn try_parse_self(this: &mut Option<Self>, cx: &mut ParsingContext) -> Result<bool>;
 
     fn finalize(this: Option<Self>) -> Result<Self>;
 
-    /// For documentaion.
+    /// For documentation.
     /// Use 'hidden' to hide.
     const SECTION: &str;
     const DOCUMENTATION: Documentation;

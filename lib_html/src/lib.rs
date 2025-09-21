@@ -78,10 +78,10 @@ pub trait InteractiveContent: FlowContent {}
 pub trait MetadataContent: Renderable {}
 /// # Safety
 /// see docs, TLDR: should have content
-pub unsafe trait PalpableConent: FlowContent {}
-pub trait SelectInnerConent: Renderable {}
-pub trait OptgroupInnerConent: Renderable {}
-pub trait OptionInnerConent: Renderable {}
+pub unsafe trait PalpableContent: FlowContent {}
+pub trait SelectInnerContent: Renderable {}
+pub trait OptgroupInnerContent: Renderable {}
+pub trait OptionInnerContent: Renderable {}
 
 pub trait BuiltinHtmlElement: Sized {
     fn class(self, class: &str) -> Self;
@@ -206,7 +206,7 @@ pub fn a(arena: &Bump) -> Link<'_> {
 /// Author information associated with an article element (q.v. the address element) does not apply to nested article elements.
 pub fn article(arena: &Bump) -> Article<'_> {
     // # Safety
-    // Needed for palpable conent.
+    // Needed for palpable content.
     let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
     pre_render_hook.add_pre_render_hook(|this: &Article, _cx| {
         assert!(!this.children.is_empty());
@@ -222,7 +222,7 @@ pub fn article(arena: &Bump) -> Article<'_> {
 /// The section element represents a generic section of a document or application. A section, in this context, is a thematic grouping of content, typically with a heading.
 pub fn section(arena: &Bump) -> Section<'_> {
     // # Safety
-    // Needed for palpable conent.
+    // Needed for palpable content.
     let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
     pre_render_hook.add_pre_render_hook(|this: &Section, _cx| {
         assert!(!this.children.is_empty());
@@ -238,7 +238,7 @@ pub fn section(arena: &Bump) -> Section<'_> {
 /// The nav element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
 pub fn nav(arena: &Bump) -> Navigation<'_> {
     // # Safety
-    // Needed for palpable conent.
+    // Needed for palpable content.
     let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
     pre_render_hook.add_pre_render_hook(|this: &Navigation, _cx| {
         assert!(!this.children.is_empty());
@@ -256,7 +256,7 @@ pub fn nav(arena: &Bump) -> Navigation<'_> {
 /// The element can be used for typographical effects like pull quotes or sidebars, for advertising, for groups of nav elements, and for other content that is considered separate from the main content of the page.
 pub fn aside(arena: &Bump) -> Aside<'_> {
     // # Safety
-    // Needed for palpable conent.
+    // Needed for palpable content.
     let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
     pre_render_hook.add_pre_render_hook(|this: &Aside, _cx| {
         assert!(!this.children.is_empty());

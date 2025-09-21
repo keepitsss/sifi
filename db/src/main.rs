@@ -59,12 +59,12 @@ fn main() -> anyhow::Result<()> {
     for strange_mark in strange_marks {
         marks.select_mut().where(query!("id == {}", strange_mark.id)).update("value = 2")?;
         // or mb
-        marks.key("id", strange_mark.id).update("value = 2")?; // can't modify selected propery when using key method
+        marks.key("id", strange_mark.id).update("value = 2")?; // can't modify selected property when using key method
         // eq to
         let ref_to_column = marks.key("id", strange_mark.id);
         let val = ref_to_column.get()?;
         val.value = 2;
-        ref_to_column.set(val); // logical alias to ref_to_columnt.update("id = _; subject_id = _;...")
+        ref_to_column.set(val); // logical alias to ref_to_column.update("id = _; subject_id = _;...")
     }
 
     tr.commit()?;
