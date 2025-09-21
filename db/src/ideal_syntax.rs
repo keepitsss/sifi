@@ -2,7 +2,7 @@
 /// - TEXT     (  String ) = Bytes checked to be utf8
 /// - BYTES    ( Vec<u8> )
 /// - BLOB<N>  ( [u8; N] )
-/// # Typa aliases
+/// # Type aliases
 /// - INT      ( integer ) = Blob<8>
 /// - FLOAT    (     f64 ) = Blob<8>
 /// - BOOL     (    bool ) = Blob<1>
@@ -36,6 +36,8 @@
 
 #[derive(Column)]
 struct Mark {
+    #[index]
+    #[unique]
     id: u64,
     subject_id: u64,
     value: u32,
@@ -43,6 +45,7 @@ struct Mark {
     control_form_name: String,
     comment: Option<String>,
     point_date: Option<String>,
+    #[index]
     date: String,
     is_point: bool,
     is_exam: bool,
@@ -52,25 +55,25 @@ fn main() -> anyhow::Result<()> {
     let db = Database::open()?;
     db.schema.modify(
         "
-        CREATE TABLE marks (
-            id                INT UNIQUE,
-            subject_id        INT,
-            value             INT,
-            weight            INT,
-            control_form_name TEXT,
-            comment           TEXT COULD NULL,
-            point_date        TEXT COULD NULL,
-            date              TEXT,
-            is_point          INT,
-            is_exam           INT,
-        )
+CREATE TABLE marks (
+    id                INT UNIQUE + INDEX,
+    subject_id        INT,
+    value             INT,
+    weight            INT,
+    control_form_name TEXT,
+    comment           TEXT OR NULL,
+    point_date        TEXT OR NULL,
+    date              TEXT + INDEX,
+    is_point          INT,
+    is_exam           INT,
+)
         "
     )?;
     // or
-    db.schema.define_table::<Mark>("marks");
+    db.schema.define_table::<Mark>();
 
-    let mut tr = db.transaction(["marks"])?; // could be multiple tables
-    let mut marks = tr.table::<Mark>("marks").unwrap();
+    let mut tr = db.transaction::<(Mark,)>()?; // could be multiple tables
+    let mut marks = tr.table::<Mark>().unwrap();
     marks.insert(Mark {
         id: todo!(),
         subject_id: todo!(),
@@ -83,21 +86,21 @@ fn main() -> anyhow::Result<()> {
         is_point: todo!(),
         is_exam: todo!(),
     })?;
-    let strange_marks = marks.select().where("point_date IS SOME AND value != 2").list()?;
+    let strange_marks = marks.select().where(query!("point_date IS SOME AND value != 2"))?.list();
+
+    let update_mark = |mark: Mark| {
+        mark.value = 2;
+        mark
+    };
+
+    tr.select_mut::<Mark>().where(query!("id == {}", strange_mark.id)).update(update_mark)?;
+    // or mb
     for strange_mark in strange_marks {
-        marks.select_mut().where(query!("id == {}", strange_mark.id)).update("value = 2")?;
-        // or mb
-        marks.mut_key("id", strange_mark.id).update("value = 2")?; // can't modify selected property when using key method
-        // eq to
-        let mut ref_to_column = marks.mut_key("id", strange_mark.id);
-        let val = ref_to_column.get()?;
-        val.value = 2;
-        ref_to_column.set(val); // logical alias to ref_to_column.update("id = _; subject_id = _;...")
+        marks.mut_key("id", strange_mark.id).update(update_mark); // can't modify selected property when using key method
     }
 
     tr.commit()?;
 
-    println!("Hello, world!");
     Ok(())
 }
 
@@ -106,9 +109,9 @@ impl !Sync for MutTable<_> {}
 
 impl<ColumnTy: Column> for MutTable<ColumnTy> {
     fn insert(&self, val: ColumnTy) -> Result<()>;
-    fn select(&self, query: String, limit: Option<usize>) -> Result<Vec<ColumnTy>>;
+    fn select(&self, query: String) -> Result<Vec<ColumnTy>>;
     fn live_select(&self, query: String) -> Result<LiveSelection<ColumnTy>>;
-    fn get(&self, field: String, val: IntoPrimitive) -> Result<ColumnWrapper<ColumnTy>>;
-    fn live_get(&self, field: String, val: IntoPrimitive) -> Result<LiveRowSelection<ColumnTy>>;
-    fn mut_key(&self, field: String, val: IntoPrimitive) -> Result<MutColumnWrapper<ColumnTy>>;
+    fn get(&self, query_of_single: String) -> Result<ColumnTy>;
+    fn live_get(&self, query_of_single: String) -> Result<LiveCell<ColumnTy>>;
+    fn update(&self, query: String, mutator: *const fn(ColumnTy) -> ColumnTy) -> Result<()>;
 }
