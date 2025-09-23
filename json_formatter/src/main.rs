@@ -1,5 +1,5 @@
 use std::{
-    io::{BufWriter, Read, stdin, stdout},
+    io::{BufWriter, Read, Write, stdin, stdout},
     num::NonZeroU32,
     ops::{Index, IndexMut},
 };
@@ -19,16 +19,17 @@ fn main() -> anyhow::Result<()> {
     measured!("reading content", stdin().read_to_end(&mut content)?);
     let content: &'static [u8] = content.leak();
     let structure = measured!("parsing structure", {
-        use std::hint::black_box;
-        for _ in 1..20 {
-            parse_json_structure(black_box(content));
-        }
+        // use std::hint::black_box;
+        // for _ in 1..10 {
+        //     parse_json_structure(black_box(content));
+        // }
         parse_json_structure(content)
     });
 
-    let stdout = BufWriter::new(stdout());
+    let mut stdout = BufWriter::new(stdout());
 
-    measured!("rendering", render_data(content, &structure, stdout))?;
+    measured!("rendering", render_data(content, &structure, &mut stdout))?;
+    stdout.flush()?;
 
     Ok(())
 }
@@ -44,84 +45,69 @@ fn render_data(
     let mut indentation = 0;
     'outer: loop {
         let mut current = structure[current_ix];
-        let prefix = if current_ix == ROOT_INDEX {
-            String::new()
-        } else if let NameOrIndex::Name { start, len } = current.name_or_index {
-            format!(
+        write!(
+            &mut output,
+            "{indentation}",
+            indentation = "  ".repeat(indentation),
+        )?;
+        if let NameOrIndex::Name { start, len } = current.name_or_index {
+            assert_ne!(current_ix, ROOT_INDEX);
+            write!(
+                &mut output,
                 "{}: ",
                 str::from_utf8(&content[start..start + len.get() as usize])
                     .unwrap()
                     .to_owned()
-            )
-        } else {
-            String::new()
-        };
-        let prefix = format!(
-            "{indentation}{prefix}",
-            indentation = "  ".repeat(indentation)
-        );
-        let styles = match current.ty {
+            )?;
+        }
+        match current.ty {
             ObjectType::Array => {
-                writeln!(&mut output, "{prefix}[")?;
+                writeln!(&mut output, "[")?;
                 current_ix += 1;
                 indentation += 1;
                 continue;
             }
             ObjectType::Structure => {
-                writeln!(&mut output, "{prefix}{{")?;
+                writeln!(&mut output, "{{")?;
                 current_ix += 1;
                 indentation += 1;
                 continue;
             }
-            _ => "",
-        };
-        writeln!(
-            &mut output,
-            "{prefix}{styles}{}{}",
-            str::from_utf8(
-                &content[current.source_start..current.source_start + current.source_len]
-            )
-            .unwrap(),
-            if current.next.is_some() && current_ix != ROOT_INDEX {
-                ","
-            } else {
-                ""
+            _ => {
+                writeln!(
+                    &mut output,
+                    "{}{}",
+                    str::from_utf8(
+                        &content[current.source_start..current.source_start + current.source_len]
+                    )
+                    .unwrap(),
+                    if current.next.is_some() { "," } else { "" }
+                )?;
             }
-        )?;
+        };
         loop {
             if current_ix == ROOT_INDEX {
                 break 'outer;
-            } else if let Some(next) = current.next {
+            }
+            let parent_ix = current.parent.unwrap();
+            if let Some(next) = current.next {
                 current_ix = next;
                 break;
-            } else if let Some(parent_ix) = current.parent {
+            } else {
                 let parent = structure[parent_ix];
                 indentation -= 1;
-                match parent.ty {
-                    ObjectType::Array => {
-                        let closing = if current_ix == ROOT_INDEX { "]," } else { "]" };
-                        writeln!(
-                            &mut output,
-                            "{indentation}{closing}",
-                            indentation = "  ".repeat(indentation)
-                        )?;
-                    }
-                    ObjectType::Structure => {
-                        let closing = if current_ix == ROOT_INDEX { "}," } else { "}" };
-                        writeln!(
-                            &mut output,
-                            "{indentation}{closing}",
-                            indentation = "  ".repeat(indentation)
-                        )?;
-                    }
+                let closing = match parent.ty {
+                    ObjectType::Array => "]",
+                    ObjectType::Structure => "}",
                     _ => unreachable!(),
-                }
-                if parent_ix == ROOT_INDEX {
-                    break 'outer;
-                }
+                };
+                writeln!(
+                    &mut output,
+                    "{indentation}{closing}",
+                    indentation = "  ".repeat(indentation)
+                )?;
+                current_ix = parent_ix;
                 current = parent;
-            } else {
-                break;
             }
         }
     }
