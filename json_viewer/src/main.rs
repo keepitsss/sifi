@@ -334,10 +334,16 @@ fn render_data(
         };
         lines.push(format!(
             "{prefix}{styles}{}{RESET}{}",
-            str::from_utf8(
-                &content[current.source_start..current.source_start + current.source_len]
-            )
-            .unwrap(),
+            {
+                match current.ty {
+                    ObjectType::EmptyArray => "[]",
+                    ObjectType::EmptyStructure => "{}",
+                    _ => str::from_utf8(
+                        &content[current.source_start..current.source_start + current.source_len],
+                    )
+                    .unwrap(),
+                }
+            },
             if current.next.is_some() && current_ix != root_ix {
                 ","
             } else {
