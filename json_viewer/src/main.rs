@@ -347,35 +347,25 @@ fn render_data(
         loop {
             if current_ix == root_ix {
                 break 'outer;
-            } else if let Some(next) = current.next {
+            }
+            let parent_ix = current.parent.unwrap();
+            if let Some(next) = current.next {
                 current_ix = next;
                 break;
-            } else if let Some(parent_ix) = current.parent {
+            } else {
                 let parent = structure[parent_ix];
                 indentation -= 1;
-                match parent.ty {
-                    ObjectType::Array => {
-                        let closing = if current_ix == root_ix { "]," } else { "]" };
-                        lines.push(format!(
-                            "{indentation}{closing}",
-                            indentation = "  ".repeat(indentation)
-                        ));
-                    }
-                    ObjectType::Structure => {
-                        let closing = if current_ix == root_ix { "}," } else { "}" };
-                        lines.push(format!(
-                            "{indentation}{closing}",
-                            indentation = "  ".repeat(indentation)
-                        ));
-                    }
+                let closing = match parent.ty {
+                    ObjectType::Array => "]",
+                    ObjectType::Structure => "}",
                     _ => unreachable!(),
-                }
-                if parent_ix == root_ix {
-                    break 'outer;
-                }
+                };
+                lines.push(format!(
+                    "{indentation}{closing}",
+                    indentation = "  ".repeat(indentation)
+                ));
+                current_ix = parent_ix;
                 current = parent;
-            } else {
-                break;
             }
         }
     }
