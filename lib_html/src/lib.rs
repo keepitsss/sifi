@@ -2,7 +2,7 @@
 //!
 //! Idea: implement palpable content by initializing element with pre_render_callback check
 
-use std::{collections::HashSet, fmt::Write};
+use std::{collections::HashSet, fmt::Write, marker::PhantomData};
 
 use bumpalo::{Bump, collections::Vec};
 
@@ -163,19 +163,16 @@ pub fn div(arena: &Bump) -> Div<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
-pub fn h(level: u8, arena: &Bump) -> Heading<'_> {
+pub fn h(level: u8, arena: &Bump) -> Heading<'_, WithoutChild> {
     assert!((1..=6).contains(&level));
-    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
-    pre_render_hook.add_pre_render_hook(|this: &Heading, _cx| {
-        assert!(!this.children.is_empty());
-    });
     Heading {
         level,
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
     }
 }
 pub fn p(arena: &Bump) -> Paragraph<'_> {
@@ -204,69 +201,49 @@ pub fn a(arena: &Bump) -> Link<'_> {
 /// When article elements are nested, the inner article elements represent articles that are in principle related to the contents of the outer article. For instance, a blog entry on a site that accepts user-submitted comments /// could represent the comments as article elements nested within the article element for the blog entry.
 ///
 /// Author information associated with an article element (q.v. the address element) does not apply to nested article elements.
-pub fn article(arena: &Bump) -> Article<'_> {
-    // # Safety
-    // Needed for palpable content.
-    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
-    pre_render_hook.add_pre_render_hook(|this: &Article, _cx| {
-        assert!(!this.children.is_empty());
-    });
+pub fn article(arena: &Bump) -> Article<'_, WithoutChild> {
     Article {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
     }
 }
 /// The section element represents a generic section of a document or application. A section, in this context, is a thematic grouping of content, typically with a heading.
-pub fn section(arena: &Bump) -> Section<'_> {
-    // # Safety
-    // Needed for palpable content.
-    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
-    pre_render_hook.add_pre_render_hook(|this: &Section, _cx| {
-        assert!(!this.children.is_empty());
-    });
+pub fn section(arena: &Bump) -> Section<'_, WithoutChild> {
     Section {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
     }
 }
 /// The nav element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
-pub fn nav(arena: &Bump) -> Navigation<'_> {
-    // # Safety
-    // Needed for palpable content.
-    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
-    pre_render_hook.add_pre_render_hook(|this: &Navigation, _cx| {
-        assert!(!this.children.is_empty());
-    });
+pub fn nav(arena: &Bump) -> Navigation<'_, WithoutChild> {
     Navigation {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
     }
 }
 /// The aside element represents a section of a page that consists of content that is tangentially related to the content around the aside element, and which could be considered separate from that content. Such sections are often represented as sidebars in printed typography.
 ///
 /// The element can be used for typographical effects like pull quotes or sidebars, for advertising, for groups of nav elements, and for other content that is considered separate from the main content of the page.
-pub fn aside(arena: &Bump) -> Aside<'_> {
-    // # Safety
-    // Needed for palpable content.
-    let mut pre_render_hook = PreRenderHookStorage::new_in(arena);
-    pre_render_hook.add_pre_render_hook(|this: &Aside, _cx| {
-        assert!(!this.children.is_empty());
-    });
+pub fn aside(arena: &Bump) -> Aside<'_, WithoutChild> {
     Aside {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
-        pre_render_hook,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
     }
 }
 // TODO: header

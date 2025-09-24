@@ -59,3 +59,5 @@ option, div
 ## Option element inner content
 
 div, `phrasing content` without datalist, object, `interactive content`
+
+# Elements

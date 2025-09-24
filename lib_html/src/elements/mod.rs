@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use super::*;
 
 #[derive(Clone)]
@@ -335,31 +337,52 @@ impl<'re> SimpleElement<'re> for Div<'re> {
     }
 }
 
-pub struct Heading<'re> {
+pub struct WithChild;
+pub struct WithoutChild;
+
+pub struct Heading<'re, IsWithChild> {
     pub level: u8,
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Heading<'re, WithChild>>,
+    pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Heading<'_> {
+impl BuiltinHtmlElement for Heading<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Heading<'re>);
-impl FlowContent for Heading<'_> {}
-impl HeadingContent for Heading<'_> {}
+derive_pre_render_hooks!('re, Heading<'re, WithChild>);
+impl FlowContent for Heading<'_, WithChild> {}
+impl HeadingContent for Heading<'_, WithChild> {}
 // # Safety
-// Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableContent for Heading<'_> {}
-impl<'re> Heading<'re> {
-    pub fn child(mut self, child: impl PhrasingContent + 're) -> Self {
+// Typesafe design.
+unsafe impl PalpableContent for Heading<'_, WithChild> {}
+impl<'re, IsWithChild> Heading<'re, IsWithChild> {
+    pub fn child(mut self, child: impl PhrasingContent + 're) -> Heading<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        self
+        let Heading {
+            level,
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: _,
+        } = self;
+        Heading {
+            level,
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: PhantomData,
+        }
     }
 }
-impl<'re> SimpleElement<'re> for Heading<'re> {
+impl<'re> SimpleElement<'re> for Heading<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -508,30 +531,46 @@ impl<'re> SimpleElement<'re> for Link<'re> {
     }
 }
 
-pub struct Article<'re> {
+pub struct Article<'re, IsWithChild> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Article<'re, WithChild>>,
+    pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Article<'_> {
+impl BuiltinHtmlElement for Article<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Article<'re>);
-impl FlowContent for Article<'_> {}
-impl SectioningContent for Article<'_> {}
+derive_pre_render_hooks!('re, Article<'re, WithChild>);
+impl FlowContent for Article<'_, WithChild> {}
+impl SectioningContent for Article<'_, WithChild> {}
 // # Safety
-// Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableContent for Article<'_> {}
-impl<'re> Article<'re> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
+// Typesafe design
+unsafe impl PalpableContent for Article<'_, WithChild> {}
+impl<'re, IsWithChild> Article<'re, IsWithChild> {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Article<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        self
+        let Article {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: _,
+        } = self;
+        Article {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: PhantomData,
+        }
     }
 }
-impl<'re> SimpleElement<'re> for Article<'re> {
+impl<'re> SimpleElement<'re> for Article<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -552,30 +591,46 @@ impl<'re> SimpleElement<'re> for Article<'re> {
     }
 }
 
-pub struct Section<'re> {
+pub struct Section<'re, IsWithChild> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Section<'re, WithChild>>,
+    pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Section<'_> {
+impl BuiltinHtmlElement for Section<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Section<'re>);
-impl FlowContent for Section<'_> {}
-impl SectioningContent for Section<'_> {}
+derive_pre_render_hooks!('re, Section<'re, WithChild>);
+impl FlowContent for Section<'_, WithChild> {}
+impl SectioningContent for Section<'_, WithChild> {}
 // # Safety
-// Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableContent for Section<'_> {}
-impl<'re> Section<'re> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
+// Typesafe design
+unsafe impl PalpableContent for Section<'_, WithChild> {}
+impl<'re, IsWithChild> Section<'re, IsWithChild> {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Section<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        self
+        let Section {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: _,
+        } = self;
+        Section {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: PhantomData,
+        }
     }
 }
-impl<'re> SimpleElement<'re> for Section<'re> {
+impl<'re> SimpleElement<'re> for Section<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -596,30 +651,46 @@ impl<'re> SimpleElement<'re> for Section<'re> {
     }
 }
 
-pub struct Navigation<'re> {
+pub struct Navigation<'re, IsWithChild> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Navigation<'re, WithChild>>,
+    pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Navigation<'_> {
+impl BuiltinHtmlElement for Navigation<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Navigation<'re>);
-impl FlowContent for Navigation<'_> {}
-impl SectioningContent for Navigation<'_> {}
+derive_pre_render_hooks!('re, Navigation<'re, WithChild>);
+impl FlowContent for Navigation<'_, WithChild> {}
+impl SectioningContent for Navigation<'_, WithChild> {}
 // # Safety
-// Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableContent for Navigation<'_> {}
-impl<'re> Navigation<'re> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
+// Typesafe design
+unsafe impl PalpableContent for Navigation<'_, WithChild> {}
+impl<'re, IsWithChild> Navigation<'re, IsWithChild> {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Navigation<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        self
+        let Navigation {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: _,
+        } = self;
+        Navigation {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: PhantomData,
+        }
     }
 }
-impl<'re> SimpleElement<'re> for Navigation<'re> {
+impl<'re> SimpleElement<'re> for Navigation<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -640,30 +711,46 @@ impl<'re> SimpleElement<'re> for Navigation<'re> {
     }
 }
 
-pub struct Aside<'re> {
+pub struct Aside<'re, IsWithChild> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Aside<'re, WithChild>>,
+    pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Aside<'_> {
+impl BuiltinHtmlElement for Aside<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Aside<'re>);
-impl FlowContent for Aside<'_> {}
-impl SectioningContent for Aside<'_> {}
+derive_pre_render_hooks!('re, Aside<'re, WithChild>);
+impl FlowContent for Aside<'_, WithChild> {}
+impl SectioningContent for Aside<'_, WithChild> {}
 // # Safety
-// Pre render hook added on creation to check that article has at least on child.
-unsafe impl PalpableContent for Aside<'_> {}
-impl<'re> Aside<'re> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
+// Typesafe design
+unsafe impl PalpableContent for Aside<'_, WithChild> {}
+impl<'re, IsWithChild> Aside<'re, IsWithChild> {
+    pub fn child(mut self, child: impl FlowContent + 're) -> Aside<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        self
+        let Aside {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: _,
+        } = self;
+        Aside {
+            classes,
+            id,
+            children,
+            arena,
+            pre_render_hook,
+            has_child: PhantomData,
+        }
     }
 }
-impl<'re> SimpleElement<'re> for Aside<'re> {
+impl<'re> SimpleElement<'re> for Aside<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
