@@ -175,6 +175,17 @@ pub fn h(level: u8, arena: &Bump) -> Heading<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+/// The hgroup element represents a heading and related content. The element may be used to group an h1–h6 element with one or more p elements containing content representing a subheading, alternative title, or tagline.
+pub fn hgroup(arena: &Bump) -> HeadingGroup<'_, WithoutHeader> {
+    HeadingGroup {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_heading: PhantomData,
+    }
+}
 pub fn p(arena: &Bump) -> Paragraph<'_> {
     Paragraph {
         classes: Classes::new_in(arena),
