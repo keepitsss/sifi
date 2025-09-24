@@ -4,37 +4,37 @@ fn main() -> anyhow::Result<()> {
     let mut stdin = BufReader::new(stdin()).bytes().peekable();
     let mut stdout = BufWriter::new(stdout());
 
-    let mut ctx = ParsingContext::default();
+    let mut ctx = FormatterContext::default();
     while let Some(ch) = stdin.next() {
         let ch = ch?;
         match ch {
             b'[' => {
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "[")?;
                 ctx.parents.push(ParentTy::Array);
                 ctx.indentation += 1;
                 ctx.has_prev = false;
-                ctx.state = ParsingState::InArray;
+                ctx.state = FormatterState::InArray;
             }
             b'{' => {
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "{{")?;
                 ctx.parents.push(ParentTy::Object);
                 ctx.indentation += 1;
                 ctx.has_prev = false;
-                ctx.state = ParsingState::InStructWithoutName;
+                ctx.state = FormatterState::InStructWithoutName;
             }
             b']' => {
                 assert_eq!(ctx.parents.pop(), Some(ParentTy::Array));
                 ctx.indentation -= 1;
-                indent(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "]")?;
                 ctx.state = match ctx.parents.last() {
-                    Some(ParentTy::Array) => ParsingState::InArray,
-                    Some(ParentTy::Object) => ParsingState::InStructWithoutName,
-                    None => ParsingState::TopLevel,
+                    Some(ParentTy::Array) => FormatterState::InArray,
+                    Some(ParentTy::Object) => FormatterState::InStructWithoutName,
+                    None => FormatterState::TopLevel,
                 };
 
                 ctx.has_prev = true;
@@ -46,12 +46,12 @@ fn main() -> anyhow::Result<()> {
             b'}' => {
                 assert_eq!(ctx.parents.pop(), Some(ParentTy::Object));
                 ctx.indentation -= 1;
-                indent(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "}}")?;
                 ctx.state = match ctx.parents.last() {
-                    Some(ParentTy::Array) => ParsingState::InArray,
-                    Some(ParentTy::Object) => ParsingState::InStructWithoutName,
-                    None => ParsingState::TopLevel,
+                    Some(ParentTy::Array) => FormatterState::InArray,
+                    Some(ParentTy::Object) => FormatterState::InStructWithoutName,
+                    None => FormatterState::TopLevel,
                 };
 
                 ctx.has_prev = true;
@@ -61,20 +61,20 @@ fn main() -> anyhow::Result<()> {
                 });
             }
             b'"' => {
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "\"")?;
                 let found = consume_string_to_end(&mut stdin, &mut stdout)?;
                 assert!(found);
 
-                if let ParsingState::InStructWithoutName = ctx.state {
-                    ctx.state = ParsingState::InStructWithName;
+                if let FormatterState::InStructWithoutName = ctx.state {
+                    ctx.state = FormatterState::InStructWithName;
 
                     assert_eq!(stdin.next().transpose()?, Some(b':'));
                     write!(stdout, ": ")?;
                 } else {
-                    if let ParsingState::InStructWithName = ctx.state {
-                        ctx.state = ParsingState::InStructWithoutName
+                    if let FormatterState::InStructWithName = ctx.state {
+                        ctx.state = FormatterState::InStructWithoutName
                     }
 
                     ctx.has_prev = true;
@@ -85,8 +85,8 @@ fn main() -> anyhow::Result<()> {
                 }
             }
             digit @ (b'-' | b'0'..=b'9') => {
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "{}", digit as char)?;
                 while let Some(ch) = peek(&mut stdin)
                     && ch.is_ascii_digit()
@@ -107,8 +107,8 @@ fn main() -> anyhow::Result<()> {
                     }
                 }
 
-                if let ParsingState::InStructWithName = ctx.state {
-                    ctx.state = ParsingState::InStructWithoutName
+                if let FormatterState::InStructWithName = ctx.state {
+                    ctx.state = FormatterState::InStructWithoutName
                 }
                 ctx.has_prev = true;
                 let _ = stdin.next_if(|x| match x {
@@ -121,12 +121,12 @@ fn main() -> anyhow::Result<()> {
                 assert_eq!(stdin.next().transpose()?.unwrap(), b'l');
                 assert_eq!(stdin.next().transpose()?.unwrap(), b'l');
 
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "null")?;
 
-                if let ParsingState::InStructWithName = ctx.state {
-                    ctx.state = ParsingState::InStructWithoutName
+                if let FormatterState::InStructWithName = ctx.state {
+                    ctx.state = FormatterState::InStructWithoutName
                 }
                 ctx.has_prev = true;
                 let _ = stdin.next_if(|x| match x {
@@ -139,12 +139,12 @@ fn main() -> anyhow::Result<()> {
                 assert_eq!(stdin.next().transpose()?.unwrap(), b'u');
                 assert_eq!(stdin.next().transpose()?.unwrap(), b'e');
 
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "true")?;
 
-                if let ParsingState::InStructWithName = ctx.state {
-                    ctx.state = ParsingState::InStructWithoutName
+                if let FormatterState::InStructWithName = ctx.state {
+                    ctx.state = FormatterState::InStructWithoutName
                 }
                 ctx.has_prev = true;
                 let _ = stdin.next_if(|x| match x {
@@ -158,12 +158,12 @@ fn main() -> anyhow::Result<()> {
                 assert_eq!(stdin.next().transpose()?.unwrap(), b's');
                 assert_eq!(stdin.next().transpose()?.unwrap(), b'e');
 
-                add_comma(&ctx, &mut stdout)?;
-                indent(&ctx, &mut stdout)?;
+                add_comma_to_previous_object(&ctx, &mut stdout)?;
+                indent_if_needed(&ctx, &mut stdout)?;
                 write!(stdout, "false")?;
 
-                if let ParsingState::InStructWithName = ctx.state {
-                    ctx.state = ParsingState::InStructWithoutName
+                if let FormatterState::InStructWithName = ctx.state {
+                    ctx.state = FormatterState::InStructWithoutName
                 }
                 ctx.has_prev = true;
                 let _ = stdin.next_if(|x| match x {
@@ -188,15 +188,18 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn indent(ctx: &ParsingContext, mut output: impl Write) -> std::io::Result<()> {
-    if ctx.state != ParsingState::InStructWithName && ctx.state != ParsingState::TopLevel {
+fn indent_if_needed(ctx: &FormatterContext, mut output: impl Write) -> std::io::Result<()> {
+    if ctx.state != FormatterState::InStructWithName && ctx.state != FormatterState::TopLevel {
         writeln!(output)?;
         write!(output, "{}", "  ".repeat(ctx.indentation))?;
     }
     Ok(())
 }
-fn add_comma(ctx: &ParsingContext, mut output: impl Write) -> std::io::Result<()> {
-    if ctx.state != ParsingState::InStructWithName && ctx.has_prev {
+fn add_comma_to_previous_object(
+    ctx: &FormatterContext,
+    mut output: impl Write,
+) -> std::io::Result<()> {
+    if ctx.state != FormatterState::InStructWithName && ctx.has_prev {
         write!(output, ",")?;
     }
     Ok(())
@@ -218,7 +221,7 @@ enum ParentTy {
 }
 
 #[derive(Debug, Default, PartialEq)]
-enum ParsingState {
+enum FormatterState {
     InStructWithName,
     InStructWithoutName,
     InArray,
@@ -227,8 +230,8 @@ enum ParsingState {
 }
 
 #[derive(Default)]
-struct ParsingContext {
-    state: ParsingState,
+struct FormatterContext {
+    state: FormatterState,
     parents: Vec<ParentTy>,
     indentation: usize,
     has_prev: bool,

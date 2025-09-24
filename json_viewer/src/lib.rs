@@ -38,6 +38,8 @@ pub struct ObjectMeta {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JsonMetadataIndex(pub u32);
 impl JsonMetadataIndex {
+    pub const ROOT: Self = JsonMetadataIndex(0);
+
     pub fn new(index: usize) -> Self {
         JsonMetadataIndex(u32::try_from(index).unwrap())
     }

@@ -39,8 +39,8 @@ fn main() -> anyhow::Result<()> {
     // disable line wrap
     stdout.write_all(b"\x1B[?7l")?;
 
-    let mut scroll = JsonMetadataIndex::new(0);
-    let mut selection = JsonMetadataIndex::new(0);
+    let mut scroll = JsonMetadataIndex::ROOT;
+    let mut selection = JsonMetadataIndex::ROOT;
     let mut selection_relative = 0;
 
     let mut stdin = std::io::stdin();
