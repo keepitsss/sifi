@@ -68,6 +68,9 @@ pub use paragraph::*;
 mod div;
 pub use div::*;
 
+mod thematic_break;
+pub use thematic_break::*;
+
 // TODO
 
 // ===== links =====

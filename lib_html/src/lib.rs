@@ -1,6 +1,17 @@
 //! 're = 'rendering
 //!
-//! Idea: implement palpable content by initializing element with pre_render_callback check
+//! # Headings and outlines
+//! `h1`–`h6` elements have a heading level, which is given by getting the element's computed heading level.
+//!
+//! These elements represent headings. The lower a heading's heading level is, the fewer ancestor sections the heading has.
+//!
+//! The outline is all headings in a document, in tree order.
+//!
+//! The outline should be used for generating document outlines, for example when generating tables of contents. When creating an interactive table of contents, entries should jump the user to the relevant heading.
+//!
+//! If a document has one or more headings, at least a single heading within the outline should have a heading level of 1.
+//!
+//! Each heading following another heading lead in the outline must have a heading level that is less than, equal to, or 1 greater than lead's heading level.
 
 use std::{collections::HashSet, fmt::Write, marker::PhantomData};
 
@@ -314,5 +325,16 @@ pub fn address(arena: &Bump) -> Address<'_, WithoutChild> {
         arena,
         pre_render_hook: PreRenderHookStorage::new_in(arena),
         has_child: PhantomData,
+    }
+}
+
+/// The `hr` element represents a paragraph-level thematic break, e.g., a scene change in a story, or a transition to another topic within a section of a reference book;
+/// alternatively, it represents a separator between a set of options of a `select` element.
+pub fn hr(arena: &Bump) -> ThematicBreak<'_> {
+    ThematicBreak {
+        classes: Classes::new_in(arena),
+        id: None,
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
