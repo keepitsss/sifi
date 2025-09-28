@@ -354,3 +354,23 @@ pub fn pre(arena: &Bump) -> PreformattedText<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+/// The `blockquote` element represents a section that is quoted from another source.
+///
+/// Content inside a `blockquote` must be quoted from another source, whose address, if it has one, may be cited in the cite attribute.
+///
+/// If the cite attribute is present, it must be a valid URL potentially surrounded by spaces.
+/// User agents may allow users to follow such citation links, but they are primarily intended for private use
+/// (e.g., by server-side scripts collecting statistics about a site's use of quotations), not for readers.
+///
+/// The content of a `blockquote` may be abbreviated or may have context added in the conventional manner for the text's language.
+pub fn blockquote(arena: &Bump) -> BlockQuote<'_, WithoutChild> {
+    BlockQuote {
+        classes: Classes::new_in(arena),
+        id: None,
+        cite: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
