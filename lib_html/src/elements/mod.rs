@@ -49,9 +49,13 @@ pub use heading::*;
 mod heading_group;
 pub use heading_group::*;
 
-// TODO: header
+// TODO: header can't contain other header or footer
+mod header;
+pub use header::*;
 
-// TODO: footer
+// TODO: footer can't contain other header or footer
+mod footer;
+pub use footer::*;
 
 // TODO: address
 

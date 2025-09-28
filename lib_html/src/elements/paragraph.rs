@@ -1,4 +1,3 @@
-
 use super::*;
 pub struct Paragraph<'re> {
     pub classes: Classes<'re>,

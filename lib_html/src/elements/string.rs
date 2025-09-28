@@ -1,4 +1,3 @@
-
 use super::*;
 impl Renderable for &str {
     fn render(&self, cx: &mut Context) {

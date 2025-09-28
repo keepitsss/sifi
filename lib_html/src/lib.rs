@@ -257,6 +257,31 @@ pub fn aside(arena: &Bump) -> Aside<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-// TODO: header
-// TODO: footer
-const _: () = ();
+/// The header element represents a group of introductory or navigational aids.
+pub fn header(arena: &Bump) -> Header<'_, WithoutChild> {
+    Header {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
+/// The footer element represents a footer for its nearest ancestor sectioning content element, or for the body element if there is no such ancestor. A footer typically contains information about its section such as who wrote it, links to related documents, copyright data, and the like.
+///
+/// When the footer element contains entire sections, they represent appendices, indices, long colophons, verbose license agreements, and other such content.
+///
+/// Footers don't necessarily have to appear at the end of a section, though they usually do.
+///
+/// When there is no ancestor sectioning content element, then it applies to the whole page.
+pub fn footer(arena: &Bump) -> Footer<'_, WithoutChild> {
+    Footer {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

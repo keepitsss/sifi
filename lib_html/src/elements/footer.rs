@@ -1,26 +1,28 @@
 use super::*;
-pub struct Navigation<'re, IsWithChild> {
+pub struct Footer<'re, IsWithChild> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
     pub(crate) arena: &'re Bump,
-    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Navigation<'re, WithChild>>,
+    pub(crate) pre_render_hook: PreRenderHookStorage<'re, Footer<'re, WithChild>>,
     pub(crate) has_child: PhantomData<IsWithChild>,
 }
-impl BuiltinHtmlElement for Navigation<'_, WithChild> {
+impl BuiltinHtmlElement for Footer<'_, WithChild> {
     derive_class!();
     derive_id!();
 }
-derive_pre_render_hooks!('re, Navigation<'re, WithChild>);
-impl FlowContent for Navigation<'_, WithChild> {}
-impl SectioningContent for Navigation<'_, WithChild> {}
+derive_pre_render_hooks!('re, Footer<'re, WithChild>);
+impl FlowContent for Footer<'_, WithChild> {}
+impl SectioningContent for Footer<'_, WithChild> {}
 // # Safety
 // Typesafe design
-unsafe impl PalpableContent for Navigation<'_, WithChild> {}
-impl<'re, IsWithChild> Navigation<'re, IsWithChild> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Navigation<'re, WithChild> {
+unsafe impl PalpableContent for Footer<'_, WithChild> {}
+impl<'re, HasChild> Footer<'re, HasChild> {
+    /// # Safety
+    /// Must be no header or footer element descendants.
+    pub unsafe fn child(mut self, child: impl FlowContent + 're) -> Footer<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
-        let Navigation {
+        let Footer {
             classes,
             id,
             children,
@@ -28,7 +30,7 @@ impl<'re, IsWithChild> Navigation<'re, IsWithChild> {
             pre_render_hook,
             has_child: _,
         } = self;
-        Navigation {
+        Footer {
             classes,
             id,
             children,
@@ -38,7 +40,7 @@ impl<'re, IsWithChild> Navigation<'re, IsWithChild> {
         }
     }
 }
-impl<'re> SimpleElement<'re> for Navigation<'re, WithChild> {
+impl<'re> SimpleElement<'re> for Footer<'re, WithChild> {
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
@@ -51,7 +53,7 @@ impl<'re> SimpleElement<'re> for Navigation<'re, WithChild> {
             attrs.push(attr);
         }
         GenericHtmlElement {
-            name: self.arena.alloc("nav"),
+            name: self.arena.alloc("footer"),
             attributes: attrs.into_bump_slice(),
             children: strip_anyelement(self.arena, &self.children),
             late_children: &[],

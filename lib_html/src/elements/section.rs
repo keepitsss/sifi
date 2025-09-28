@@ -1,4 +1,3 @@
-
 use super::*;
 pub struct Section<'re, IsWithChild> {
     pub classes: Classes<'re>,
