@@ -285,3 +285,20 @@ pub fn footer(arena: &Bump) -> Footer<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+/// The address element represents the contact information for its nearest article or body element ancestor. If that is the body element, then the contact information applies to the document as a whole.
+///
+/// The address element must not be used to represent arbitrary addresses (e.g. postal addresses), unless those addresses are in fact the relevant contact information. (The p element is the appropriate element for marking up postal addresses in general.)
+///
+/// The address element must not contain information other than contact information.
+///
+/// Typically, the address element would be included along with other information in a footer element.
+pub fn address(arena: &Bump) -> Address<'_, WithoutChild> {
+    Address {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

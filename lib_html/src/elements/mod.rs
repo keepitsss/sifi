@@ -57,7 +57,8 @@ pub use header::*;
 mod footer;
 pub use footer::*;
 
-// TODO: address
+mod address;
+pub use address::*;
 
 // grouping elements
 
