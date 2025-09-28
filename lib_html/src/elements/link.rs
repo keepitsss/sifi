@@ -23,7 +23,7 @@ impl<'re> Link<'re> {
     /// Must be no interactive content descendant, a element descendant, or descendant with the tabindex attribute specified.
     ///
     /// Content model is transparent. ( You should be able to pass child directly to link parent )
-    pub unsafe fn child(mut self, child: impl IntoElement<'re> + 're) -> Self {
+    pub unsafe fn child(mut self, child: impl Renderable + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }

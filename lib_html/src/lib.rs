@@ -338,3 +338,19 @@ pub fn hr(arena: &Bump) -> ThematicBreak<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
+/// The `pre` element represents a block of preformatted text, in which structure is represented by typographic conventions rather than by elements.
+///
+/// Some examples of cases where the pre element could be used:
+/// - Including an email, with paragraphs indicated by blank lines, lists indicated by lines prefixed with a bullet, and so on.
+/// - Including fragments of computer code, with structure indicated according to the conventions of that language.
+/// - Displaying ASCII art.
+pub fn pre(arena: &Bump) -> PreformattedText<'_, WithoutChild> {
+    PreformattedText {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

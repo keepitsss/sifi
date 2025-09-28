@@ -71,6 +71,9 @@ pub use div::*;
 mod thematic_break;
 pub use thematic_break::*;
 
+mod preformatted_text;
+pub use preformatted_text::*;
+
 // TODO
 
 // ===== links =====
