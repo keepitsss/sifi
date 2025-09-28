@@ -18,7 +18,9 @@ derive_pre_render_hooks!('re, Link<'re>);
 impl FlowContent for Link<'_> {}
 impl PhrasingContent for Link<'_> {}
 impl<'re> Link<'re> {
-    pub fn child(mut self, child: impl FlowContent + 're) -> Self {
+    /// # Safety
+    /// Must be no interactive content descendant, a element descendant, or descendant with the tabindex attribute specified.
+    pub unsafe fn child(mut self, child: impl IntoElement<'re> + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
     }

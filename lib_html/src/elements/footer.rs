@@ -13,7 +13,6 @@ impl BuiltinHtmlElement for Footer<'_, WithChild> {
 }
 derive_pre_render_hooks!('re, Footer<'re, WithChild>);
 impl FlowContent for Footer<'_, WithChild> {}
-impl SectioningContent for Footer<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for Footer<'_, WithChild> {}

@@ -13,7 +13,6 @@ impl BuiltinHtmlElement for Header<'_, WithChild> {
 }
 derive_pre_render_hooks!('re, Header<'re, WithChild>);
 impl FlowContent for Header<'_, WithChild> {}
-impl SectioningContent for Header<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for Header<'_, WithChild> {}
