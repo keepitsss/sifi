@@ -154,6 +154,10 @@ pub fn body(arena: &Bump) -> Body<'_> {
     }
 }
 
+/// The `div` element has no special meaning at all.
+/// It represents its children.
+/// It can be used with the `class`, `lang`, and `title` attributes to mark up semantics common to a group of consecutive elements.
+/// It can also be used in a `dl` element, wrapping groups of `dt` and `dd` elements.
 pub fn div(arena: &Bump) -> Div<'_> {
     Div {
         classes: Classes::new_in(arena),
@@ -163,6 +167,7 @@ pub fn div(arena: &Bump) -> Div<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
+// TODO: docs
 pub fn h(level: u8, arena: &Bump) -> Heading<'_, WithoutChild> {
     assert!((1..=6).contains(&level));
     Heading {
@@ -175,7 +180,7 @@ pub fn h(level: u8, arena: &Bump) -> Heading<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The hgroup element represents a heading and related content. The element may be used to group an h1–h6 element with one or more p elements containing content representing a subheading, alternative title, or tagline.
+/// The `hgroup` element represents a heading and related content. The element may be used to group an h1–h6 element with one or more p elements containing content representing a subheading, alternative title, or tagline.
 pub fn hgroup(arena: &Bump) -> HeadingGroup<'_, WithoutHeader> {
     HeadingGroup {
         classes: Classes::new_in(arena),
@@ -186,6 +191,9 @@ pub fn hgroup(arena: &Bump) -> HeadingGroup<'_, WithoutHeader> {
         has_heading: PhantomData,
     }
 }
+/// The `p` element represents a paragraph.
+///
+/// The `p` element should not be used when a more specific element is more appropriate.
 pub fn p(arena: &Bump) -> Paragraph<'_> {
     Paragraph {
         classes: Classes::new_in(arena),
@@ -207,11 +215,13 @@ pub fn a(arena: &Bump) -> Link<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
-/// The article element represents a complete, or self-contained, composition in a document, page, application, or site and that is, in principle, independently distributable or reusable, e.g. in syndication. This could be a forum post, a magazine or newspaper article, a blog entry, a user-submitted comment, an interactive widget or gadget, or any other independent item of content.
+/// The `article` element represents a complete, or self-contained, composition in a document, page, application, or site and that is, in principle, independently distributable or reusable, e.g. in syndication.
+/// This could be a forum post, a magazine or newspaper `article`, a blog entry, a user-submitted comment, an interactive widget or gadget, or any other independent item of content.
 ///
-/// When article elements are nested, the inner article elements represent articles that are in principle related to the contents of the outer article. For instance, a blog entry on a site that accepts user-submitted comments /// could represent the comments as article elements nested within the article element for the blog entry.
+/// When `article` elements are nested, the inner `article` elements represent `articles` that are in principle related to the contents of the outer `article`.
+/// For instance, a blog entry on a site that accepts user-submitted comments could represent the comments as `article` elements nested within the `article` element for the blog entry.
 ///
-/// Author information associated with an article element (q.v. the address element) does not apply to nested article elements.
+/// Author information associated with an `article` element (q.v. the address element) does not apply to nested `article` elements.
 pub fn article(arena: &Bump) -> Article<'_, WithoutChild> {
     Article {
         classes: Classes::new_in(arena),
@@ -222,7 +232,7 @@ pub fn article(arena: &Bump) -> Article<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The section element represents a generic section of a document or application. A section, in this context, is a thematic grouping of content, typically with a heading.
+/// The `section` element represents a generic `section` of a document or application. A `section`, in this context, is a thematic grouping of content, typically with a heading.
 pub fn section(arena: &Bump) -> Section<'_, WithoutChild> {
     Section {
         classes: Classes::new_in(arena),
@@ -233,7 +243,7 @@ pub fn section(arena: &Bump) -> Section<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The nav element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
+/// The `nav` element represents a section of a page that links to other pages or to parts within the page: a section with navigation links.
 pub fn nav(arena: &Bump) -> Navigation<'_, WithoutChild> {
     Navigation {
         classes: Classes::new_in(arena),
@@ -244,7 +254,8 @@ pub fn nav(arena: &Bump) -> Navigation<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The aside element represents a section of a page that consists of content that is tangentially related to the content around the aside element, and which could be considered separate from that content. Such sections are often represented as sidebars in printed typography.
+/// The `aside` element represents a section of a page that consists of content that is tangentially related to the content around the `aside` element, and which could be considered separate from that content.
+/// Such sections are often represented as sidebars in printed typography.
 ///
 /// The element can be used for typographical effects like pull quotes or sidebars, for advertising, for groups of nav elements, and for other content that is considered separate from the main content of the page.
 pub fn aside(arena: &Bump) -> Aside<'_, WithoutChild> {
@@ -268,11 +279,12 @@ pub fn header(arena: &Bump) -> Header<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The footer element represents a footer for its nearest ancestor sectioning content element, or for the body element if there is no such ancestor. A footer typically contains information about its section such as who wrote it, links to related documents, copyright data, and the like.
+/// The `footer` element represents a `footer` for its nearest ancestor sectioning content element, or for the body element if there is no such ancestor.
+/// A `footer` typically contains information about its section such as who wrote it, links to related documents, copyright data, and the like.
 ///
-/// When the footer element contains entire sections, they represent appendices, indices, long colophons, verbose license agreements, and other such content.
+/// When the `footer` element contains entire sections, they represent appendices, indices, long colophons, verbose license agreements, and other such content.
 ///
-/// Footers don't necessarily have to appear at the end of a section, though they usually do.
+/// `Footers` don't necessarily have to appear at the end of a section, though they usually do.
 ///
 /// When there is no ancestor sectioning content element, then it applies to the whole page.
 pub fn footer(arena: &Bump) -> Footer<'_, WithoutChild> {
@@ -285,13 +297,15 @@ pub fn footer(arena: &Bump) -> Footer<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
-/// The address element represents the contact information for its nearest article or body element ancestor. If that is the body element, then the contact information applies to the document as a whole.
+/// The `address` element represents the contact information for its nearest article or body element ancestor.
+/// If that is the body element, then the contact information applies to the document as a whole.
 ///
-/// The address element must not be used to represent arbitrary addresses (e.g. postal addresses), unless those addresses are in fact the relevant contact information. (The p element is the appropriate element for marking up postal addresses in general.)
+/// The `address` element must not be used to represent arbitrary addresses (e.g. postal addresses), unless those addresses are in fact the relevant contact information.
+/// (The `p` element is the appropriate element for marking up postal addresses in general.)
 ///
-/// The address element must not contain information other than contact information.
+/// The `address` element must not contain information other than contact information.
 ///
-/// Typically, the address element would be included along with other information in a footer element.
+/// Typically, the `address` element would be included along with other information in a footer element.
 pub fn address(arena: &Bump) -> Address<'_, WithoutChild> {
     Address {
         classes: Classes::new_in(arena),

@@ -14,19 +14,19 @@ pub(crate) use hooks::*;
 pub struct WithChild;
 pub struct WithoutChild;
 
-// text element
+// ===== text element =====
 mod string;
 
-// document element
+// ===== document element =====
 mod html;
 pub use html::*;
 
-// metadata elements
+// ===== metadata elements =====
 
 mod head;
 pub use head::*;
 
-// section elements
+// ===== section elements =====
 
 mod body;
 pub use body::*;
@@ -60,7 +60,7 @@ pub use footer::*;
 mod address;
 pub use address::*;
 
-// grouping elements
+// ===== grouping elements =====
 
 mod paragraph;
 pub use paragraph::*;
@@ -70,7 +70,7 @@ pub use div::*;
 
 // TODO
 
-// links
+// ===== links =====
 
 mod link;
 pub use link::*;

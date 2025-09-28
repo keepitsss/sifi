@@ -18,8 +18,11 @@ derive_pre_render_hooks!('re, Link<'re>);
 impl FlowContent for Link<'_> {}
 impl PhrasingContent for Link<'_> {}
 impl<'re> Link<'re> {
+    // FIXME: content model should be transparent
     /// # Safety
     /// Must be no interactive content descendant, a element descendant, or descendant with the tabindex attribute specified.
+    ///
+    /// Content model is transparent. ( You should be able to pass child directly to link parent )
     pub unsafe fn child(mut self, child: impl IntoElement<'re> + 're) -> Self {
         self.children.push(child.into_any_element(self.arena));
         self
