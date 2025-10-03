@@ -71,10 +71,9 @@ where
 
 #[derive(Clone, Copy)]
 pub enum HtmlValue<'re> {
-    Number(u32),
+    Number(i32),
     String(&'re str),
-    Bool(bool),
-    Empty,
+    Bool,
 }
 #[derive(Clone, Copy)]
 pub struct HtmlAttribute<'re> {
@@ -85,10 +84,9 @@ impl<'re> Renderable for HtmlAttribute<'re> {
     fn render(&self, cx: &mut Context) {
         let name = &self.name;
         match &self.value {
-            HtmlValue::Number(number) => cx_write!(cx, " {name}={number}"),
+            HtmlValue::Number(number) => cx_write!(cx, " {name}=\"{number}\""),
             HtmlValue::String(string) => cx_write!(cx, " {name}=\"{string}\""), // FIXME: escaping
-            HtmlValue::Bool(bool) => cx_write!(cx, " {name}={bool}"),
-            HtmlValue::Empty => cx_write!(cx, " {name}"),
+            HtmlValue::Bool => cx_write!(cx, " {name}"),
         }
     }
 }

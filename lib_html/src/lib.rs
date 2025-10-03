@@ -29,8 +29,8 @@ macro_rules! cx_writeln {
 }
 
 macro_rules! derive_pre_render_hooks {
-    ($lifetime:lifetime, $ty:ty) => {
-        impl<$lifetime> PreRenderHooks<$lifetime> for $ty {
+    ($lifetime:lifetime $(+ $generic:tt)*, $ty:ty) => {
+        impl<$lifetime $(,$generic)*> PreRenderHooks<$lifetime> for $ty {
             type This = Self;
             unsafe fn set_pre_render_hook(
                 &mut self,
@@ -372,5 +372,54 @@ pub fn blockquote(arena: &Bump) -> BlockQuote<'_, WithoutChild> {
         arena,
         pre_render_hook: PreRenderHookStorage::new_in(arena),
         has_child: PhantomData,
+    }
+}
+
+/// The `ol` element represents a list of items, where the items have been intentionally ordered, such that changing the order would change the meaning of the document.
+pub fn ol(arena: &Bump) -> OrderedList<'_> {
+    OrderedList {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        reversed: false,
+        starting_value: None,
+        marker_type: None,
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+
+/// The `ul` element represents a list of items, where the order of the items is not important — that is, where changing the order would not materially change the meaning of the document.
+pub fn ul(arena: &Bump) -> UnorderedList<'_> {
+    UnorderedList {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+
+/// The `menu` element represents a toolbar consisting of its contents, in the form of an unordered list of items (represented by `li` elements), each of which represents a command that the user can perform or activate.
+pub fn menu(arena: &Bump) -> Menu<'_> {
+    Menu {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+
+/// The `li` element represents a list item.
+#[allow(private_bounds)]
+pub fn li<Value: ListItemValueProp>(arena: &Bump, value: Value) -> ListItem<'_, Value> {
+    ListItem {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        value,
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }

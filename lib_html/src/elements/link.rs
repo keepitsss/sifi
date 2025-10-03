@@ -68,7 +68,7 @@ impl<'re> SimpleElement<'re> for Link<'re> {
         if self.download {
             attrs.push(HtmlAttribute {
                 name: "download",
-                value: HtmlValue::Empty,
+                value: HtmlValue::Bool,
             })
         }
         if !self.ping.is_empty() {

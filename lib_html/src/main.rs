@@ -41,5 +41,20 @@ fn example_page(arena: &Bump) -> Body<'_> {
             .href("https://www.iana.org/domains/example")
             .child("More information...")
     });
-    body(arena).child(div(arena).child(header).child(text).child(link))
+    let unordered_list = ul(arena).child(li(arena, NoValue).child("unordered"));
+    let ordered_list = ol(arena)
+        .start(4)
+        .child(li(arena, NoValue).child("1"))
+        .child(li(arena, WithValue(3)).child("2"))
+        .child(li(arena, NoValue).child("3"))
+        .child(li(arena, NoValue).child("4"))
+        .marker_type(OrderedListMarkerType::LOWER_ROMAN);
+    body(arena).child(
+        div(arena)
+            .child(header)
+            .child(text)
+            .child(link)
+            .child(unordered_list)
+            .child(ordered_list),
+    )
 }
