@@ -1,5 +1,5 @@
 use super::*;
-pub struct PreformattedText<'re, HasChild> {
+pub struct PreformattedText<'re, HasChild: ChildExistenceState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
@@ -16,7 +16,7 @@ impl FlowContent for PreformattedText<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for PreformattedText<'_, WithChild> {}
-impl<'re, HasChild> PreformattedText<'re, HasChild> {
+impl<'re, HasChild: ChildExistenceState> PreformattedText<'re, HasChild> {
     pub fn child(mut self, child: impl PhrasingContent + 're) -> PreformattedText<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
         let PreformattedText {

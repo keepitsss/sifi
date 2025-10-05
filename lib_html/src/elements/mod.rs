@@ -11,8 +11,18 @@ use generic_html_element::*;
 mod hooks;
 pub(crate) use hooks::*;
 
+trait Marker: Copy + 'static {}
+
+#[allow(private_bounds)]
+pub trait ChildExistenceState: Marker {}
+#[derive(Clone, Copy)]
 pub struct WithChild;
+#[derive(Clone, Copy)]
 pub struct WithoutChild;
+impl Marker for WithChild {}
+impl ChildExistenceState for WithChild {}
+impl Marker for WithoutChild {}
+impl ChildExistenceState for WithoutChild {}
 
 // ===== text element =====
 mod string;

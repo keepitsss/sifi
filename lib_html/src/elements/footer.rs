@@ -16,7 +16,7 @@ impl FlowContent for Footer<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for Footer<'_, WithChild> {}
-impl<'re, HasChild> Footer<'re, HasChild> {
+impl<'re, HasChild: ChildExistenceState> Footer<'re, HasChild> {
     /// # Safety
     /// Must be no header or footer element descendants.
     pub unsafe fn child(mut self, child: impl FlowContent + 're) -> Footer<'re, WithChild> {

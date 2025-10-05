@@ -1,6 +1,5 @@
-
 use super::*;
-pub struct Search<'re, HasChild> {
+pub struct Search<'re, HasChild: ChildExistenceState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
@@ -17,7 +16,7 @@ impl FlowContent for Search<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for Search<'_, WithChild> {}
-impl<'re, HasChild> Search<'re, HasChild> {
+impl<'re, HasChild: ChildExistenceState> Search<'re, HasChild> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Search<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
         let Search {

@@ -1,5 +1,5 @@
 use super::*;
-pub struct BlockQuote<'re, HasChild> {
+pub struct BlockQuote<'re, HasChild: ChildExistenceState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     // TODO: should be url
@@ -18,7 +18,7 @@ impl FlowContent for BlockQuote<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for BlockQuote<'_, WithChild> {}
-impl<'re, HasChild> BlockQuote<'re, HasChild> {
+impl<'re, HasChild: ChildExistenceState> BlockQuote<'re, HasChild> {
     pub fn child(mut self, child: impl FlowContent + 're) -> BlockQuote<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
         let BlockQuote {

@@ -1,5 +1,5 @@
 use super::*;
-pub struct Main<'re, HasChild> {
+pub struct Main<'re, HasChild: ChildExistenceState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
@@ -16,7 +16,7 @@ impl FlowContent for Main<'_, WithChild> {}
 // # Safety
 // Typesafe design
 unsafe impl PalpableContent for Main<'_, WithChild> {}
-impl<'re, HasChild> Main<'re, HasChild> {
+impl<'re, HasChild: ChildExistenceState> Main<'re, HasChild> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Main<'re, WithChild> {
         self.children.push(child.into_any_element(self.arena));
         let Main {

@@ -12,7 +12,7 @@ impl DivType for SelectDiv {}
 pub struct GeneralDiv;
 impl DivType for GeneralDiv {}
 
-pub struct Div<'re, Type: DivType, HasChild> {
+pub struct Div<'re, Type: DivType, HasChild: ChildExistenceState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
@@ -21,11 +21,15 @@ pub struct Div<'re, Type: DivType, HasChild> {
     pub(crate) marker: PhantomData<Type>,
     pub(crate) has_child: PhantomData<HasChild>,
 }
-impl<'re, Type: DivType, HasChild: 're> BuiltinHtmlElement for Div<'re, Type, HasChild> {
+impl<'re, Type: DivType, HasChild: ChildExistenceState> BuiltinHtmlElement
+    for Div<'re, Type, HasChild>
+{
     derive_class!();
     derive_id!();
 }
-impl<'re, Type: DivType, HasChild: 're> PreRenderHooks<'re> for Div<'re, Type, HasChild> {
+impl<'re, Type: DivType, HasChild: ChildExistenceState> PreRenderHooks<'re>
+    for Div<'re, Type, HasChild>
+{
     type This = Div<'re, Type, WithChild>;
     unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&Self::This, &mut Context) + 're) {
         unsafe {
@@ -37,7 +41,7 @@ impl<'re, Type: DivType, HasChild: 're> PreRenderHooks<'re> for Div<'re, Type, H
     }
 }
 impl FlowContent for Div<'_, GeneralDiv, WithChild> {}
-impl<'re, HasChild> Div<'re, GeneralDiv, HasChild> {
+impl<'re, HasChild: ChildExistenceState> Div<'re, GeneralDiv, HasChild> {
     pub fn child(mut self, child: impl FlowContent + 're) -> Div<'re, GeneralDiv, WithChild> {
         self.children.push(child.into_any_element(self.arena));
         let Div {
