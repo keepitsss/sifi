@@ -465,3 +465,19 @@ pub fn figcaption(arena: &Bump) -> FigureCaption<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
+
+/// The `main` element represents the dominant contents of the document.
+///
+/// # Safety
+/// - A document must not have more than one `main` element that does not have the hidden attribute specified.
+/// - Ancestor elements must be limited to `html`, `body`, `div`, `form` without an accessible name, and autonomous custom elements.
+pub unsafe fn html_main(arena: &Bump) -> Main<'_, WithoutChild> {
+    Main {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

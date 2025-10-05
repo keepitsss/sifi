@@ -55,10 +55,13 @@ fn example_page(arena: &Bump) -> elements::Body<'_> {
         .caption(figcaption(arena).child("lists"));
 
     body(arena).child(
-        div(arena)
-            .child(header)
-            .child(text)
-            .child(link)
-            .child(lists),
+        // Safety: no other main elements
+        unsafe { html_main(arena) }.child(
+            div(arena)
+                .child(header)
+                .child(text)
+                .child(link)
+                .child(lists),
+        ),
     )
 }
