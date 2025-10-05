@@ -171,13 +171,15 @@ pub fn body(arena: &Bump) -> Body<'_> {
 /// It represents its children.
 /// It can be used with the `class`, `lang`, and `title` attributes to mark up semantics common to a group of consecutive elements.
 /// It can also be used in a `dl` element, wrapping groups of `dt` and `dd` elements.
-pub fn div(arena: &Bump) -> Div<'_> {
+pub fn div<Type: DivType>(arena: &Bump) -> Div<'_, Type, WithoutChild> {
     Div {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
         arena,
         pre_render_hook: PreRenderHookStorage::new_in(arena),
+        marker: PhantomData,
+        has_child: PhantomData,
     }
 }
 // TODO: docs

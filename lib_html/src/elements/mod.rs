@@ -65,9 +65,6 @@ pub use address::*;
 mod paragraph;
 pub use paragraph::*;
 
-mod div;
-pub use div::*;
-
 mod thematic_break;
 pub use thematic_break::*;
 
@@ -99,6 +96,9 @@ pub use main::*;
 
 mod search;
 pub use search::*;
+
+mod div;
+pub use div::*;
 
 // TODO
 
