@@ -1,20 +1,20 @@
 body {
-    background-color: #f0f0f2;
+    background-color: var(--background);
+    color: var(--foreground);
     padding: 0;
 }
 
 div {
     width: 600px;
     padding: 2em;
-    background-color: #fdfdff;
-    border-radius: 0.5em;
-    box-shadow: 2px 3px 7px 2px rgba(0, 0, 0, 0.02);
+    box-shadow: 2px 3px 7px 2px rgba(200, 200, 256, 0.05);
 }
 
 a:link,
 a:visited {
-    color: #38488f;
-    text-decoration: none;
+    /*color: #38488f;*/
+    color: unset;
+    text-decoration: underline;
 }
 
 @media (max-width: 700px) {
@@ -22,4 +22,35 @@ a:visited {
         margin: 0 auto;
         width: auto;
     }
+}
+
+figure {
+    margin: 0;
+    margin-top: 2rem;
+
+    border: 1px solid var(--border);
+    border-radius: 9.25px;
+    padding: 1rem;
+}
+
+ol,
+ul {
+    background: oklch(70.4% 0.191 22.216 / 0.1);
+    border-radius: inherit;
+    padding-block: 0.5rem;
+}
+
+::selection {
+    background-color: var(--selection);
+    color: var(--selection-foreground);
+}
+
+:root {
+    --background: oklch(14.5% 0 0);
+    --foreground: oklch(98.5% 0 0);
+
+    --border: oklch(100% 0 0/0.1);
+
+    --selection: oklch(92.2% 0 0);
+    --selection-foreground: oklch(20.5% 0 0);
 }
