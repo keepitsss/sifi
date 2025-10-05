@@ -1,4 +1,3 @@
-
 use super::*;
 pub struct UnorderedList<'re> {
     pub classes: Classes<'re>,
@@ -20,6 +19,7 @@ impl<'re> UnorderedList<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for UnorderedList<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {

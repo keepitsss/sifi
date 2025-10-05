@@ -6,6 +6,7 @@ pub struct Head<'re> {
 }
 derive_pre_render_hooks!('re, Head<'re>);
 impl<'re> SimpleElement<'re> for Head<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut children = Vec::new_in(self.arena);
         children.push(self.arena.alloc(GlobalStyles) as &dyn Renderable);

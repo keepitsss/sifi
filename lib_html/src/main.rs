@@ -31,7 +31,7 @@ fn main() {
     std::fs::write("index.html", output).unwrap();
 }
 
-fn example_page(arena: &Bump) -> Body<'_> {
+fn example_page(arena: &Bump) -> elements::Body<'_> {
     let header = h(1, arena).child("Example Domain");
     let text = p(arena).child(
             "This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.",
@@ -49,12 +49,16 @@ fn example_page(arena: &Bump) -> Body<'_> {
         .child(li(arena, NoValue).child("3"))
         .child(li(arena, NoValue).child("4"))
         .marker_type(OrderedListMarkerType::LOWER_ROMAN);
+    let lists = figure(arena)
+        .child(unordered_list)
+        .child(ordered_list)
+        .caption(figcaption(arena).child("lists"));
+
     body(arena).child(
         div(arena)
             .child(header)
             .child(text)
             .child(link)
-            .child(unordered_list)
-            .child(ordered_list),
+            .child(lists),
     )
 }

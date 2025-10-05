@@ -40,7 +40,8 @@ impl<'re> Renderable for GenericHtmlElement<'re> {
     }
 }
 
-pub trait SimpleElement<'re>: PreRenderHooks<'re> {
+pub trait SimpleElement<'re>: PreRenderHooks<'re, This = Self::GenericSelf> {
+    type GenericSelf; // = Self;
     #[allow(clippy::wrong_self_convention)]
     /// # Safety
     /// You should call pre_render_hooks before rendering
@@ -56,11 +57,12 @@ pub fn strip_anyelement<'re>(
 }
 impl<'re, T> Renderable for T
 where
-    T: SimpleElement<'re, This = Self>,
+    T: SimpleElement<'re>,
+    for<'a> &'a T::GenericSelf: From<&'a T>,
 {
     fn render(&self, cx: &mut Context) {
         if let Some(hook) = self.get_pre_render_hook() {
-            hook(self, cx);
+            hook(self.into(), cx);
         }
         // SAFETY: hook called
         unsafe {

@@ -39,6 +39,7 @@ impl<'re, IsWithChild> Navigation<'re, IsWithChild> {
     }
 }
 impl<'re> SimpleElement<'re> for Navigation<'re, WithChild> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {

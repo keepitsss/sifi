@@ -34,13 +34,13 @@ macro_rules! derive_pre_render_hooks {
             type This = Self;
             unsafe fn set_pre_render_hook(
                 &mut self,
-                hook: impl Fn(&Self, &mut Context) + $lifetime,
+                hook: impl Fn(&Self::This, &mut Context) + $lifetime,
             ) {
                 unsafe {
                     self.pre_render_hook.set_pre_render_hook(hook);
                 }
             }
-            fn get_pre_render_hook(&self) -> Option<Hook<$lifetime, Self>> {
+            fn get_pre_render_hook(&self) -> Option<Hook<$lifetime, Self::This>> {
                 self.pre_render_hook.get_pre_render_hook()
             }
         }
@@ -134,8 +134,10 @@ macro_rules! derive_id {
     };
 }
 
-mod elements;
-pub use elements::*;
+pub mod elements;
+use elements::*;
+pub use elements::{NoValue, OrderedListMarkerType, WithValue};
+// pub use elements::*;
 
 pub fn html(arena: &Bump) -> Html<'_> {
     Html {
@@ -419,6 +421,46 @@ pub fn li<Value: ListItemValueProp>(arena: &Bump, value: Value) -> ListItem<'_, 
         id: None,
         children: Vec::new_in(arena),
         value,
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+
+/// The `figure` element represents some flow content, optionally with a caption, that is self-contained (like a complete sentence)
+/// and is typically referenced as a single unit from the main flow of the document.
+///
+/// "Self-contained" in this context does not necessarily mean independent.
+/// For example, each sentence in a paragraph is self-contained;
+/// an image that is part of a sentence would be inappropriate for `figure`, but an entire sentence made of images would be fitting.
+///
+/// The element can thus be used to annotate illustrations, diagrams, photos, code listings, etc.
+///
+/// The `figcaption` element child of the element, if any, represents the caption of the `figure` element's contents.
+/// If there is no child `figcaption` element, then there is no caption.
+///
+/// A `figure` element's contents are part of the surrounding flow.
+/// If the purpose of the page is to display the figure, for example a photograph on an image sharing site,
+/// the `figure` and `figcaption` elements can be used to explicitly provide a caption for that figure.
+/// For content that is only tangentially related, or that serves a separate purpose than the surrounding flow,
+/// the `aside` element should be used (and can itself wrap a figure).
+/// For example, a pull quote that repeats content from an `article` would be more appropriate in an `aside` than in a figure,
+/// because it isn't part of the content, it's a repetition of the content for the purposes of enticing readers or highlighting key topics.
+pub fn figure(arena: &Bump) -> Figure<'_, EmptyState> {
+    Figure {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        marker: PhantomData,
+    }
+}
+/// The `figcaption` element represents a caption or legend for the rest of the contents of the `figcaption` element's parent `figure` element.
+pub fn figcaption(arena: &Bump) -> FigureCaption<'_> {
+    FigureCaption {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
         arena,
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }

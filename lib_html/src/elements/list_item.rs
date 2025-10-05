@@ -27,6 +27,7 @@ impl<'re, IsOrdered> ListItem<'re, IsOrdered> {
     }
 }
 impl<'re, IsOrdered: ListItemValueProp> SimpleElement<'re> for ListItem<'re, IsOrdered> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {

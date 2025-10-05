@@ -40,6 +40,7 @@ impl<'re, HasChild> Header<'re, HasChild> {
     }
 }
 impl<'re> SimpleElement<'re> for Header<'re, WithChild> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {

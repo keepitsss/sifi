@@ -14,6 +14,7 @@ impl<'re> Html<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Html<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         GenericHtmlElement {
             name: "html",

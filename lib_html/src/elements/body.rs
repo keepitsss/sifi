@@ -19,6 +19,7 @@ impl BuiltinHtmlElement for Body<'_> {
 }
 derive_pre_render_hooks!('re, Body<'re>);
 impl<'re> SimpleElement<'re> for Body<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(attr) = self.classes.render() {

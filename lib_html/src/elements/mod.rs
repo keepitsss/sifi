@@ -93,6 +93,9 @@ pub use list_item::*;
 
 // NOTE: you can use trait, that is implemented only for children
 
+mod figure;
+pub use figure::*;
+
 // TODO
 
 // ===== links =====

@@ -19,6 +19,7 @@ impl<'re> Div<'re> {
     }
 }
 impl<'re> SimpleElement<'re> for Div<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {

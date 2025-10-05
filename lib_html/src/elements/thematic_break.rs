@@ -12,6 +12,7 @@ impl BuiltinHtmlElement for ThematicBreak<'_> {
 derive_pre_render_hooks!('re, ThematicBreak<'re>);
 impl FlowContent for ThematicBreak<'_> {}
 impl<'re> SimpleElement<'re> for ThematicBreak<'re> {
+    type GenericSelf = Self;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
         if let Some(id) = self.id {
