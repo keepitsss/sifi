@@ -108,14 +108,9 @@ pub use search::*;
 mod div;
 pub use div::*;
 
-// TODO
-
-// ===== links =====
+// ===== text-level =====
 
 mod link;
 pub use link::*;
 
-// TODO
-
-// text-level semantics
 // TODO

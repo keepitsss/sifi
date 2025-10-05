@@ -171,6 +171,11 @@ pub fn body(arena: &Bump) -> Body<'_> {
 /// It represents its children.
 /// It can be used with the `class`, `lang`, and `title` attributes to mark up semantics common to a group of consecutive elements.
 /// It can also be used in a `dl` element, wrapping groups of `dt` and `dd` elements.
+///
+/// > ![NOTE]
+/// >
+/// > Authors are strongly encouraged to view the `div` element as an element of last resort, for when no other element is suitable.
+/// > Use of more appropriate elements instead of the `div` element leads to better accessibility for readers and easier maintainability for authors.
 pub fn div<Type: DivType>(arena: &Bump) -> Div<'_, Type, WithoutChild> {
     Div {
         classes: Classes::new_in(arena),
