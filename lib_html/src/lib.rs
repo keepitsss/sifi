@@ -481,3 +481,21 @@ pub unsafe fn html_main(arena: &Bump) -> Main<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// The `search` element represents a part of a document or application that contains a set of form controls or other content related to performing a search or filtering operation.
+/// This could be a search of the web site or application; a way of searching or filtering search results on the current web page; or a global or Internet-wide search function.
+///
+/// > ![NOTE]
+/// >
+/// > It's not appropriate to use the `search` element just for presenting search results, though suggestions and links as part of "quick search" results can be included as part of a search feature.
+/// > Rather, a returned web page of search results would instead be expected to be presented as part of the main content of that web page.
+pub fn search(arena: &Bump) -> Search<'_, WithoutChild> {
+    Search {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

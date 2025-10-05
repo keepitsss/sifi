@@ -89,15 +89,16 @@ pub use menu::*;
 mod list_item;
 pub use list_item::*;
 
-mod main;
-pub use main::*;
-
 // TODO: description list
-
-// NOTE: you can use trait, that is implemented only for children
 
 mod figure;
 pub use figure::*;
+
+mod main;
+pub use main::*;
+
+mod search;
+pub use search::*;
 
 // TODO
 
