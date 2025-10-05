@@ -1,30 +1,31 @@
 use super::*;
 
+#[allow(private_bounds)]
+pub trait FigureState: Marker {}
+trait CorrectFigureState: FigureState {}
+
 pub struct EmptyState;
+impl Marker for EmptyState {}
+impl FigureState for EmptyState {}
 pub struct WithContent;
+impl Marker for WithContent {}
+impl FigureState for WithContent {}
 impl CorrectFigureState for WithContent {}
-impl From<WithContent> for GenericState {
-    fn from(_: WithContent) -> Self {
-        GenericState
-    }
-}
 pub struct WithCaption;
+impl Marker for WithCaption {}
+impl FigureState for WithCaption {}
 pub struct WithCaptionAndContent;
+impl Marker for WithCaptionAndContent {}
+impl FigureState for WithCaptionAndContent {}
 impl CorrectFigureState for WithCaptionAndContent {}
-impl From<WithCaptionAndContent> for GenericState {
-    fn from(_: WithCaptionAndContent) -> Self {
-        GenericState
-    }
-}
 pub struct WithContentAndCaption;
+impl Marker for WithContentAndCaption {}
+impl FigureState for WithContentAndCaption {}
 impl CorrectFigureState for WithContentAndCaption {}
-impl From<WithContentAndCaption> for GenericState {
-    fn from(_: WithContentAndCaption) -> Self {
-        GenericState
-    }
-}
+
 pub struct GenericState;
-trait CorrectFigureState: Into<GenericState> {}
+impl Marker for GenericState {}
+impl FigureState for GenericState {}
 
 impl<'re, State: CorrectFigureState> From<&Figure<'re, State>> for &Figure<'re, GenericState> {
     fn from(value: &Figure<'re, State>) -> Self {
@@ -32,7 +33,7 @@ impl<'re, State: CorrectFigureState> From<&Figure<'re, State>> for &Figure<'re, 
     }
 }
 
-pub struct Figure<'re, State> {
+pub struct Figure<'re, State: FigureState> {
     pub classes: Classes<'re>,
     pub id: Option<&'re str>,
     pub children: Vec<'re, AnyElement<'re>>,
@@ -48,11 +49,11 @@ pub struct FigureCaption<'re> {
     pub(crate) pre_render_hook: PreRenderHookStorage<'re, Self>,
 }
 
-impl<'re, State: 're> BuiltinHtmlElement for Figure<'re, State> {
+impl<'re, State: FigureState> BuiltinHtmlElement for Figure<'re, State> {
     derive_class!();
     derive_id!();
 }
-impl<'re, State: 're> PreRenderHooks<'re> for Figure<'re, State> {
+impl<'re, State: FigureState> PreRenderHooks<'re> for Figure<'re, State> {
     type This = Figure<'re, GenericState>;
     unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&Self::This, &mut Context) + 're) {
         unsafe {
@@ -63,8 +64,8 @@ impl<'re, State: 're> PreRenderHooks<'re> for Figure<'re, State> {
         self.pre_render_hook.get_pre_render_hook()
     }
 }
-impl<'re, State> Figure<'re, State> {
-    unsafe fn change_state<NewState>(self) -> Figure<'re, NewState> {
+impl<'re, State: FigureState> Figure<'re, State> {
+    unsafe fn change_state<NewState: FigureState>(self) -> Figure<'re, NewState> {
         let Figure {
             classes,
             id,
@@ -115,8 +116,8 @@ impl<'re> Figure<'re, WithCaptionAndContent> {
         unsafe { self.change_state() }
     }
 }
-impl<'re, State: CorrectFigureState + 're> FlowContent for Figure<'re, State> {}
-impl<'re, State: CorrectFigureState + 're> SimpleElement<'re> for Figure<'re, State> {
+impl<'re, State: CorrectFigureState> FlowContent for Figure<'re, State> {}
+impl<'re, State: CorrectFigureState> SimpleElement<'re> for Figure<'re, State> {
     type GenericSelf = Figure<'re, GenericState>;
     unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
         let mut attrs = Vec::new_in(self.arena);
