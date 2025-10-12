@@ -511,11 +511,36 @@ pub fn search(arena: &Bump) -> Search<'_, WithoutChild> {
 ///
 /// The level of stress that a particular piece of content has is given by its number of ancestor `em` elements.
 ///
-/// The placement of stress emphasis changes the meaning of the sentence.
+/// **The placement of stress emphasis changes the meaning of the sentence.**
 /// The element thus forms an integral part of the content.
 /// The precise way in which stress is used in this way depends on the language.
 pub fn em(arena: &Bump) -> Emphasis<'_, WithoutChild> {
     Emphasis {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
+
+/// Represents strong importance, seriousness, or urgency for its contents.
+///
+/// *Importance*: the `strong` element can be used in a heading, caption, or paragraph to distinguish the part that really matters from other parts that might be more detailed, more jovial, or merely boilerplate.
+///     (This is distinct from marking up subheadings, for which the hgroup element is appropriate.)
+///
+/// For example, the first word of the previous paragraph is marked up with `strong` to distinguish it from the more detailed text in the rest of the paragraph.
+///
+/// *Seriousness*: the `strong` element can be used to mark up a warning or caution notice.
+///
+/// *Urgency*: the `strong` element can be used to denote contents that the user needs to see sooner than other parts of the document.
+///
+/// The relative level of importance of a piece of content is given by its number of ancestor `strong` elements; each `strong` element increases the importance of its contents.
+///
+/// **Changing the importance of a piece of text with the `strong` element does not change the meaning of the sentence.**
+pub fn strong(arena: &Bump) -> StrongImportance<'_, WithoutChild> {
+    StrongImportance {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),

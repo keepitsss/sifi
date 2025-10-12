@@ -116,4 +116,7 @@ pub use link::*;
 mod emphasis;
 pub use emphasis::*;
 
+mod strong_importance;
+pub use strong_importance::*;
+
 // TODO
