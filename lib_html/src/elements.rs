@@ -13,6 +13,9 @@ pub(crate) use hooks::*;
 
 trait Marker: 'static {}
 
+pub struct GenericState;
+impl Marker for GenericState {}
+
 #[allow(private_bounds)]
 pub trait ChildExistenceState: Marker {}
 pub struct WithChild;
@@ -156,4 +159,129 @@ pub use mark::*;
 mod line_break;
 pub use line_break::*;
 
-// TODO
+// ===== table =====
+
+mod table {
+    use super::*;
+
+    #[allow(private_bounds)]
+    pub trait TableState: Marker {}
+    trait CorrectTableState: TableState {}
+    pub struct Empty;
+    pub struct WithCaption;
+    pub struct WithColumnGroup;
+    pub struct WithHead;
+    pub struct WithBody;
+    pub struct WithRows;
+    pub struct WithFooter;
+    impl Marker for Empty {}
+    impl Marker for WithCaption {}
+    impl Marker for WithColumnGroup {}
+    impl Marker for WithHead {}
+    impl Marker for WithBody {}
+    impl Marker for WithRows {}
+    impl Marker for WithFooter {}
+    impl TableState for Empty {}
+    impl TableState for WithCaption {}
+    impl TableState for WithColumnGroup {}
+    impl TableState for WithHead {}
+    impl TableState for WithBody {}
+    impl TableState for WithRows {}
+    impl TableState for WithFooter {}
+    impl CorrectTableState for WithCaption {}
+    impl CorrectTableState for WithColumnGroup {}
+    impl CorrectTableState for WithHead {}
+    impl CorrectTableState for WithBody {}
+    impl CorrectTableState for WithRows {}
+    impl CorrectTableState for WithFooter {}
+
+    impl TableState for GenericState {}
+
+    pub struct Table<'re, State: TableState> {
+        pub classes: Classes<'re>,
+        pub id: Option<&'re str>,
+        pub children: Vec<'re, AnyElement<'re>>,
+        pub(crate) arena: &'re Bump,
+        pub(crate) pre_render_hook: PreRenderHookStorage<'re, Table<'re, GenericState>>,
+        pub(crate) state: PhantomData<State>,
+    }
+    impl<'re, State: CorrectTableState> From<&Table<'re, State>> for &Table<'re, GenericState> {
+        fn from(value: &Table<'re, State>) -> Self {
+            unsafe { std::mem::transmute(value) }
+        }
+    }
+    impl<State: CorrectTableState> BuiltinHtmlElement for Table<'_, State> {
+        derive_class!();
+        derive_id!();
+    }
+    impl<'re, State: TableState> PreRenderHooks<'re> for Table<'re, State> {
+        type This = Table<'re, GenericState>;
+        unsafe fn set_pre_render_hook(&mut self, hook: impl Fn(&Self::This, &mut Context) + 're) {
+            unsafe {
+                self.pre_render_hook.set_pre_render_hook(hook);
+            }
+        }
+        fn get_pre_render_hook(&self) -> Option<Hook<'re, Self::This>> {
+            self.pre_render_hook.get_pre_render_hook()
+        }
+    }
+    impl<State: TableState> FlowContent for Table<'_, State> where State: CorrectTableState {}
+    // # Safety
+    // Typesafe design
+    unsafe impl<State: TableState> PalpableContent for Table<'_, State> where State: CorrectTableState {}
+
+    impl<'re, State: TableState> SimpleElement<'re> for Table<'re, State>
+    where
+        State: CorrectTableState,
+    {
+        type GenericSelf = Table<'re, GenericState>;
+        unsafe fn into_html_element(&self) -> GenericHtmlElement<'re> {
+            let mut attrs = Vec::new_in(self.arena);
+            if let Some(id) = self.id {
+                attrs.push(HtmlAttribute {
+                    name: "id",
+                    value: HtmlValue::String(id),
+                });
+            }
+            if let Some(attr) = self.classes.render() {
+                attrs.push(attr);
+            }
+            GenericHtmlElement {
+                name: self.arena.alloc("table"),
+                attributes: attrs.into_bump_slice(),
+                children: strip_anyelement(self.arena, &self.children),
+                late_children: &[],
+            }
+        }
+    }
+
+    impl<'re, OldState: TableState> Table<'re, OldState> {
+        unsafe fn change_state<NewState: TableState>(self) -> Table<'re, NewState> {
+            let Table {
+                classes,
+                id,
+                children,
+                arena,
+                pre_render_hook,
+                state: _,
+            } = self;
+            Table {
+                classes,
+                id,
+                children,
+                arena,
+                pre_render_hook,
+                state: PhantomData,
+            }
+        }
+    }
+    impl<'re> Table<'re, Empty> {
+        pub fn caption(mut self, caption: Caption<'re>) -> Table<'re, WithCaption> {
+            self.children.push(caption.into_any_element(self.arena));
+            unsafe { self.change_state() }
+        }
+    }
+}
+
+mod caption;
+pub use caption::*;

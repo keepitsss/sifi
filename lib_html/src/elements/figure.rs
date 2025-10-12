@@ -23,8 +23,6 @@ impl Marker for WithContentAndCaption {}
 impl FigureState for WithContentAndCaption {}
 impl CorrectFigureState for WithContentAndCaption {}
 
-pub struct GenericState;
-impl Marker for GenericState {}
 impl FigureState for GenericState {}
 
 impl<'re, State: CorrectFigureState> From<&Figure<'re, State>> for &Figure<'re, GenericState> {
