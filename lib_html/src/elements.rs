@@ -125,4 +125,7 @@ pub use small_print::*;
 mod stale;
 pub use stale::*;
 
+mod cite;
+pub use cite::*;
+
 // TODO

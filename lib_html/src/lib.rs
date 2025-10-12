@@ -589,3 +589,22 @@ pub fn s(arena: &Bump) -> Stale<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents the title of a work
+/// (e.g. a book, a paper, an essay, a poem, a score, a song, a script, a film, a TV show, a game, a sculpture, a painting, a theatre production, a play, an opera, a musical, an exhibition, a legal case report, a computer program, etc.).
+/// This can be a work that is being quoted or referenced in detail (i.e., a citation), or it can just be a work that is mentioned in passing.
+///
+/// A person's name is not the title of a work — even if people call that person a piece of work — and the element must therefore not be used to mark up people's names.
+/// (In some cases, the `b` element might be appropriate for names;
+///     e.g. in a gossip article where the names of famous people are keywords rendered with a different style to draw attention to them.
+///     In other cases, if an element is really needed, the span element can be used.)
+pub fn cite(arena: &Bump) -> Cite<'_, WithoutChild> {
+    Cite {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
