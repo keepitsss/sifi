@@ -131,4 +131,7 @@ pub use cite::*;
 mod quote;
 pub use quote::*;
 
+mod code;
+pub use code::*;
+
 // TODO

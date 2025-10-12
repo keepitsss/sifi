@@ -633,3 +633,16 @@ pub fn q(arena: &Bump) -> Quote<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents a fragment of computer code.
+/// This could be an XML element name, a filename, a computer program, or any other string that a computer would recognize.
+pub fn code(arena: &Bump) -> Code<'_, WithoutChild> {
+    Code {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
