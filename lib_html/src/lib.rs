@@ -722,3 +722,15 @@ pub fn mark(arena: &Bump) -> Mark<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents a line break.
+///
+/// `br` elements must be used only for line breaks that are actually **part of the content**, as in poems or addresses.
+pub fn br(arena: &Bump) -> LineBreak<'_> {
+    LineBreak {
+        classes: Classes::new_in(arena),
+        id: None,
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
