@@ -573,3 +573,19 @@ pub fn small(arena: &Bump) -> SmallPrint<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents contents that are no longer accurate or no longer relevant.
+///
+/// > ![NOTE]
+/// >
+/// > The `s` element is not appropriate when indicating document edits; to mark a span of text as having been removed from a document, use the `del` element.
+pub fn s(arena: &Bump) -> Stale<'_, WithoutChild> {
+    Stale {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
