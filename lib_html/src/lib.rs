@@ -678,3 +678,17 @@ pub fn kbd(arena: &Bump) -> KeyboardInput<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// The i element represents a span of text in an alternate voice or mood, or otherwise offset from the normal prose in a manner indicating a different quality of text, such as a taxonomic designation, a technical term, an idiomatic phrase from another language, transliteration, a thought, or a ship name in Western texts.
+///
+/// _TODO_: Terms in languages different from the main text should be annotated with lang attributes.
+pub fn i(arena: &Bump) -> Alternate<'_, WithoutChild> {
+    Alternate {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
