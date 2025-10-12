@@ -679,11 +679,25 @@ pub fn kbd(arena: &Bump) -> KeyboardInput<'_, WithoutChild> {
     }
 }
 
-/// The i element represents a span of text in an alternate voice or mood, or otherwise offset from the normal prose in a manner indicating a different quality of text, such as a taxonomic designation, a technical term, an idiomatic phrase from another language, transliteration, a thought, or a ship name in Western texts.
+/// Represents a span of text in an alternate voice or mood, or otherwise offset from the normal prose in a manner indicating a different quality of text,
+///     such as a taxonomic designation, a technical term, an idiomatic phrase from another language, transliteration, a thought, or a ship name in Western texts.
 ///
 /// _TODO_: Terms in languages different from the main text should be annotated with lang attributes.
 pub fn i(arena: &Bump) -> Alternate<'_, WithoutChild> {
     Alternate {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
+
+/// Represents a span of text to which attention is being drawn for utilitarian purposes without conveying any extra importance and with no implication of an alternate voice or mood,
+///     such as key words in a document abstract, product names in a review, actionable words in interactive text-driven software, or an article lede.
+pub fn b(arena: &Bump) -> MeaninglessAttention<'_, WithoutChild> {
+    MeaninglessAttention {
         classes: Classes::new_in(arena),
         id: None,
         children: Vec::new_in(arena),
