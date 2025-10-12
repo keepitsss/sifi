@@ -549,3 +549,27 @@ pub fn strong(arena: &Bump) -> StrongImportance<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents side comments such as small print.
+///
+/// > Small print typically features disclaimers, caveats, legal restrictions, or copyrights.
+/// > Small print is also sometimes used for attribution, or for satisfying licensing requirements.
+///
+/// > The `small` element does not "de-emphasize" or lower the importance of text emphasized by the em element or marked as important with the `strong` element.
+/// > To mark text as not emphasized or important, simply do not mark it up with the em or `strong` elements respectively.
+///
+/// The `small` element should not be used for extended spans of text, such as multiple paragraphs, lists, or sections of text. It is only intended for short runs of text.
+/// The text of a page listing terms of use, for instance, would not be a suitable candidate for the `small` element:
+///     in such a case, the text is not a side comment, it is the main content of the page.
+///
+/// The `small` element must not be used for subheadings; for that purpose, use the `hgroup` element.
+pub fn small(arena: &Bump) -> SmallPrint<'_, WithoutChild> {
+    SmallPrint {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

@@ -119,4 +119,7 @@ pub use emphasis::*;
 mod strong_importance;
 pub use strong_importance::*;
 
+mod small_print;
+pub use small_print::*;
+
 // TODO
