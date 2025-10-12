@@ -506,3 +506,21 @@ pub fn search(arena: &Bump) -> Search<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents stress emphasis of its contents.
+///
+/// The level of stress that a particular piece of content has is given by its number of ancestor `em` elements.
+///
+/// The placement of stress emphasis changes the meaning of the sentence.
+/// The element thus forms an integral part of the content.
+/// The precise way in which stress is used in this way depends on the language.
+pub fn em(arena: &Bump) -> Emphasis<'_, WithoutChild> {
+    Emphasis {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

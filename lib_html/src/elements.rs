@@ -113,4 +113,7 @@ pub use div::*;
 mod link;
 pub use link::*;
 
+mod emphasis;
+pub use emphasis::*;
+
 // TODO
