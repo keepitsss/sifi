@@ -646,3 +646,17 @@ pub fn code(arena: &Bump) -> Code<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents sample or quoted output from another program or computing system.
+///
+/// > This element can be contrasted with the `output` element, which can be used to provide immediate output in a web application.
+pub fn samp(arena: &Bump) -> ProgramSample<'_, WithoutChild> {
+    ProgramSample {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}
