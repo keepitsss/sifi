@@ -128,4 +128,7 @@ pub use stale::*;
 mod cite;
 pub use cite::*;
 
+mod quote;
+pub use quote::*;
+
 // TODO
