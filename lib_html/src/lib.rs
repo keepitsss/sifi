@@ -660,3 +660,21 @@ pub fn samp(arena: &Bump) -> ProgramSample<'_, WithoutChild> {
         has_child: PhantomData,
     }
 }
+
+/// Represents user input (typically keyboard input, although it may also be used to represent other input, such as voice commands).
+///
+/// When the `kbd` element is nested inside a `samp` element, it represents the input as it was echoed by the system.
+///
+/// When the `kbd` element contains a `samp` element, it represents input based on system output, for example invoking a menu item.
+///
+/// When the `kbd` element is nested inside another `kbd` element, it represents an actual key or other single unit of input as appropriate for the input mechanism.
+pub fn kbd(arena: &Bump) -> KeyboardInput<'_, WithoutChild> {
+    KeyboardInput {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        has_child: PhantomData,
+    }
+}

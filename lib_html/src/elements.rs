@@ -137,4 +137,7 @@ pub use code::*;
 mod program_sample;
 pub use program_sample::*;
 
+mod keyboard_input;
+pub use keyboard_input::*;
+
 // TODO
