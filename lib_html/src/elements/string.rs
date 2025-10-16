@@ -9,7 +9,14 @@ impl Renderable for &mut str {
         writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
     }
 }
+impl Renderable for String {
+    fn render(&self, cx: &mut Context) {
+        writeln!(cx.output, "{}{self}", cx.indentation).unwrap();
+    }
+}
 impl FlowContent for &str {}
 impl PhrasingContent for &str {}
 impl FlowContent for &mut str {}
 impl PhrasingContent for &mut str {}
+impl FlowContent for String {}
+impl PhrasingContent for String {}

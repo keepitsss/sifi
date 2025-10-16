@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use bumpalo::Bump;
-use lib_html::*;
+use lib_html::{elements::CorrectTableState, *};
 
 static GLOBAL_STYLES: &str = include_str!("style.css");
 
@@ -31,6 +31,73 @@ fn main() {
     std::fs::write("index.html", output).unwrap();
 }
 
+fn sudoku(arena: &Bump) -> elements::Table<'_, impl CorrectTableState> {
+    let grid = br#"
+1 36 47 9|
+ 2  9  1 |
+7       6|
+2 4 3 9 8|
+         |
+5  9 7  1|
+6   5   2|
+   7     |
+9  8 2  5|
+"#;
+    let table_element = table(arena).id("sudoku");
+    let mut table_element = table_element.body({
+        let mut body = tbody(arena);
+        for row_ix in 0..3 {
+            let mut row = tr(arena);
+            for col_ix in 0..9 {
+                let cell = grid[1 + row_ix * 11 + col_ix];
+
+                row = row.child(if cell != b' ' {
+                    td(arena).child((cell - b'0').to_string())
+                } else {
+                    td(arena)
+                });
+            }
+            body = body.child(row);
+        }
+        body
+    });
+    table_element = table_element.body({
+        let mut body = tbody(arena);
+        for row_ix in 3..6 {
+            let mut row = tr(arena);
+            for col_ix in 0..9 {
+                let cell = grid[1 + row_ix * 11 + col_ix];
+
+                row = row.child(if cell != b' ' {
+                    td(arena).child((cell - b'0').to_string())
+                } else {
+                    td(arena)
+                });
+            }
+            body = body.child(row);
+        }
+        body
+    });
+    table_element = table_element.body({
+        let mut body = tbody(arena);
+        for row_ix in 6..9 {
+            let mut row = tr(arena);
+            for col_ix in 0..9 {
+                let cell = grid[1 + row_ix * 11 + col_ix];
+
+                row = row.child(if cell != b' ' {
+                    td(arena).child((cell - b'0').to_string())
+                } else {
+                    td(arena)
+                });
+            }
+            body = body.child(row);
+        }
+        body
+    });
+    table_element
+}
+
 fn example_page(arena: &Bump) -> elements::Body<'_> {
     let header = h(1, arena).child("Example Domain");
     let text = p(arena).child(
@@ -54,6 +121,8 @@ fn example_page(arena: &Bump) -> elements::Body<'_> {
         .child(ordered_list)
         .caption(figcaption(arena).child("lists"));
 
+    let sudoku = sudoku(arena);
+
     body(arena).child(
         // Safety: no other main elements
         unsafe { html_main(arena) }.child(
@@ -61,7 +130,8 @@ fn example_page(arena: &Bump) -> elements::Body<'_> {
                 .child(header)
                 .child(text)
                 .child(link)
-                .child(lists),
+                .child(lists)
+                .child(sudoku),
         ),
     )
 }

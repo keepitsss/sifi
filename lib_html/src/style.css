@@ -40,6 +40,35 @@ ul {
     padding-block: 0.5rem;
 }
 
+#sudoku {
+    border-collapse: collapse;
+    border: solid thick;
+
+    colgroup,
+    tbody {
+        border: solid medium;
+    }
+    td {
+        border: solid thin;
+        height: 1.4em;
+        width: 1.4em;
+        text-align: center;
+        padding: 0;
+    }
+}
+
+/*table {
+    border: solid thick var(--foreground);
+
+    tbody {
+        border: solid medium var(--foreground);
+    }
+    td,
+    th {
+        border: solid thin var(--foreground);
+    }
+}*/
+
 ::selection {
     background-color: var(--selection);
     color: var(--selection-foreground);

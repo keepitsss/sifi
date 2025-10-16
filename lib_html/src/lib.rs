@@ -734,3 +734,91 @@ pub fn br(arena: &Bump) -> LineBreak<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
+
+/// Represents data with more than one dimension, in the form of a table.
+///
+/// Tables have rows, columns, and cells given by their descendants.
+/// The rows and columns form a grid; a table's cells must completely cover that grid without overlap.
+pub fn table(arena: &Bump) -> Table<'_, Empty> {
+    Table {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        state: PhantomData,
+    }
+}
+/// Represents the title of the `table`.
+///
+/// When a `table` element is the only content in a `figure` element other than the `figcaption`,
+///     the `caption` element should be omitted in favor of the `figcaption`.
+pub fn caption(arena: &Bump) -> Caption<'_> {
+    Caption {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents a block of rows that consist of a body of data for the parent `table` element.
+pub fn tbody(arena: &Bump) -> TableBody<'_> {
+    TableBody {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents the block of rows that consist of the column labels (headers) and any ancillary non-header cells for the parent `table` element.
+pub fn thead(arena: &Bump) -> TableHeader<'_> {
+    TableHeader {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents the block of rows that consist of the column summaries (footers) for the parent `table` element.
+pub fn tfoot(arena: &Bump) -> TableFooter<'_> {
+    TableFooter {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents a row of cells in a table.
+pub fn tr(arena: &Bump) -> TableRow<'_> {
+    TableRow {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents a data cell in a table.
+pub fn td(arena: &Bump) -> TableDataCell<'_> {
+    TableDataCell {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
+/// Represents a header cell in a table.
+pub fn th(arena: &Bump) -> TableHeaderCell<'_> {
+    TableHeaderCell {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+    }
+}
