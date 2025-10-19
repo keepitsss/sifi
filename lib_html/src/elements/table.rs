@@ -131,33 +131,87 @@ impl<'re> Table<'re, Empty> {
     pub fn row(self, table_row: TableRow<'re>) -> Table<'re, WithRows> {
         unsafe { self.with(table_row) }
     }
+    pub fn bodies(
+        mut self,
+        table_bodies: impl IntoIterator<Item = TableBody<'re>>,
+    ) -> Table<'re, WithRows> {
+        for body in table_bodies {
+            self.children.push(body.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
+    pub fn rows(
+        mut self,
+        table_rows: impl IntoIterator<Item = TableRow<'re>>,
+    ) -> Table<'re, WithRows> {
+        for row in table_rows {
+            self.children.push(row.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }
     }
 }
 impl<'re> Table<'re, WithCaption> {
-    pub fn body(self, table_body: TableBody<'re>) -> Table<'re, WithBodies> {
-        unsafe { self.with(table_body) }
-    }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
         unsafe { self.with(header) }
     }
+    pub fn body(self, table_body: TableBody<'re>) -> Table<'re, WithBodies> {
+        unsafe { self.with(table_body) }
+    }
     pub fn row(self, table_row: TableRow<'re>) -> Table<'re, WithRows> {
         unsafe { self.with(table_row) }
+    }
+    pub fn bodies(
+        mut self,
+        table_bodies: impl IntoIterator<Item = TableBody<'re>>,
+    ) -> Table<'re, WithRows> {
+        for body in table_bodies {
+            self.children.push(body.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
+    pub fn rows(
+        mut self,
+        table_rows: impl IntoIterator<Item = TableRow<'re>>,
+    ) -> Table<'re, WithRows> {
+        for row in table_rows {
+            self.children.push(row.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }
     }
 }
 impl<'re> Table<'re, WithColumnGroup> {
-    pub fn body(self, table_body: TableBody<'re>) -> Table<'re, WithBodies> {
-        unsafe { self.with(table_body) }
-    }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
         unsafe { self.with(header) }
     }
+    pub fn body(self, table_body: TableBody<'re>) -> Table<'re, WithBodies> {
+        unsafe { self.with(table_body) }
+    }
     pub fn row(self, table_row: TableRow<'re>) -> Table<'re, WithRows> {
         unsafe { self.with(table_row) }
+    }
+    pub fn bodies(
+        mut self,
+        table_bodies: impl IntoIterator<Item = TableBody<'re>>,
+    ) -> Table<'re, WithRows> {
+        for body in table_bodies {
+            self.children.push(body.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
+    pub fn rows(
+        mut self,
+        table_rows: impl IntoIterator<Item = TableRow<'re>>,
+    ) -> Table<'re, WithRows> {
+        for row in table_rows {
+            self.children.push(row.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }
@@ -170,6 +224,24 @@ impl<'re> Table<'re, WithHeader> {
     pub fn row(self, table_row: TableRow<'re>) -> Table<'re, WithRows> {
         unsafe { self.with(table_row) }
     }
+    pub fn bodies(
+        mut self,
+        table_bodies: impl IntoIterator<Item = TableBody<'re>>,
+    ) -> Table<'re, WithRows> {
+        for body in table_bodies {
+            self.children.push(body.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
+    pub fn rows(
+        mut self,
+        table_rows: impl IntoIterator<Item = TableRow<'re>>,
+    ) -> Table<'re, WithRows> {
+        for row in table_rows {
+            self.children.push(row.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }
     }
@@ -178,6 +250,15 @@ impl<'re> Table<'re, WithBodies> {
     pub fn body(self, table_body: TableBody<'re>) -> Self {
         unsafe { self.with(table_body) }
     }
+    pub fn bodies(
+        mut self,
+        table_bodies: impl IntoIterator<Item = TableBody<'re>>,
+    ) -> Table<'re, WithRows> {
+        for body in table_bodies {
+            self.children.push(body.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }
     }
@@ -185,6 +266,15 @@ impl<'re> Table<'re, WithBodies> {
 impl<'re> Table<'re, WithRows> {
     pub fn row(self, table_row: TableRow<'re>) -> Self {
         unsafe { self.with(table_row) }
+    }
+    pub fn rows(
+        mut self,
+        table_rows: impl IntoIterator<Item = TableRow<'re>>,
+    ) -> Table<'re, WithRows> {
+        for row in table_rows {
+            self.children.push(row.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
         unsafe { self.with(footer) }

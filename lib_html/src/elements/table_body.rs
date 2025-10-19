@@ -12,8 +12,14 @@ impl BuiltinHtmlElement for TableBody<'_> {
 }
 derive_pre_render_hooks!('re, TableBody<'re>);
 impl<'re> TableBody<'re> {
-    pub fn child(mut self, child: TableRow<'re>) -> TableBody<'re> {
+    pub fn child(mut self, child: TableRow<'re>) -> Self {
         self.children.push(child.into_any_element(self.arena));
+        self
+    }
+    pub fn rows(mut self, elements: impl IntoIterator<Item = TableRow<'re>>) -> Self {
+        for element in elements {
+            self.children.push(element.into_any_element(self.arena));
+        }
         self
     }
 }

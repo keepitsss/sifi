@@ -12,14 +12,26 @@ impl BuiltinHtmlElement for TableRow<'_> {
 }
 derive_pre_render_hooks!('re, TableRow<'re>);
 
-trait TdOrTh<'a>: IntoElement<'a> {}
+trait Sealed {}
+#[allow(private_bounds)]
+pub trait TdOrTh<'a>: IntoElement<'a> + Sealed {}
 impl<'a> TdOrTh<'a> for TableDataCell<'a> {}
+impl Sealed for TableDataCell<'_> {}
 impl<'a> TdOrTh<'a> for TableHeaderCell<'a> {}
+impl Sealed for TableHeaderCell<'_> {}
 
 impl<'re> TableRow<'re> {
-    #[allow(private_bounds)]
     pub fn child(mut self, child: impl TdOrTh<'re>) -> TableRow<'re> {
         self.children.push(child.into_any_element(self.arena));
+        self
+    }
+    pub fn cells<DataOrHeaderCell: TdOrTh<'re>>(
+        mut self,
+        elements: impl IntoIterator<Item = DataOrHeaderCell>,
+    ) -> TableRow<'re> {
+        for element in elements {
+            self.children.push(element.into_any_element(self.arena));
+        }
         self
     }
 }

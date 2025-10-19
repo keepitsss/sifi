@@ -33,69 +33,36 @@ fn main() {
 
 fn sudoku(arena: &Bump) -> elements::Table<'_, impl CorrectTableState> {
     let grid = br#"
-1 36 47 9|
- 2  9  1 |
-7       6|
-2 4 3 9 8|
-         |
-5  9 7  1|
-6   5   2|
-   7     |
-9  8 2  5|
++---------+
+|1 36 47 9|
+| 2  9  1 |
+|7       6|
+|2 4 3 9 8|
+|         |
+|5  9 7  1|
+|6   5   2|
+|   7     |
+|9  8 2  5|
++---------+
 "#;
-    let table_element = table(arena).id("sudoku");
-    let mut table_element = table_element.body({
-        let mut body = tbody(arena);
-        for row_ix in 0..3 {
-            let mut row = tr(arena);
-            for col_ix in 0..9 {
-                let cell = grid[1 + row_ix * 11 + col_ix];
-
-                row = row.child(if cell != b' ' {
-                    td(arena).child((cell - b'0').to_string())
-                } else {
-                    td(arena)
-                });
-            }
-            body = body.child(row);
+    let cell = |row_ix: usize, col_ix: usize| {
+        let temp = grid[14 + row_ix * 12 + col_ix];
+        if temp == b' ' {
+            td(arena)
+        } else {
+            td(arena).child((temp - b'0').to_string())
         }
-        body
-    });
-    table_element = table_element.body({
-        let mut body = tbody(arena);
-        for row_ix in 3..6 {
-            let mut row = tr(arena);
-            for col_ix in 0..9 {
-                let cell = grid[1 + row_ix * 11 + col_ix];
+    };
 
-                row = row.child(if cell != b' ' {
-                    td(arena).child((cell - b'0').to_string())
-                } else {
-                    td(arena)
-                });
-            }
-            body = body.child(row);
-        }
-        body
-    });
-    table_element = table_element.body({
-        let mut body = tbody(arena);
-        for row_ix in 6..9 {
-            let mut row = tr(arena);
-            for col_ix in 0..9 {
-                let cell = grid[1 + row_ix * 11 + col_ix];
-
-                row = row.child(if cell != b' ' {
-                    td(arena).child((cell - b'0').to_string())
-                } else {
-                    td(arena)
-                });
-            }
-            body = body.child(row);
-        }
-        body
-    });
-    table_element
+    // FIXME: add `colgroup` and `col` elements
+    table(arena).id("sudoku").bodies([
+        tbody(arena)
+            .rows((0..3).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
+        tbody(arena)
+            .rows((3..6).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
+        tbody(arena)
+            .rows((6..9).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
+    ])
 }
 
 fn example_page(arena: &Bump) -> elements::Body<'_> {
