@@ -122,6 +122,21 @@ impl<'re> Table<'re, Empty> {
     pub fn caption(self, caption: Caption<'re>) -> Table<'re, WithCaption> {
         unsafe { self.with(caption) }
     }
+    pub fn colgroup(
+        self,
+        group: TableColumnGroup<'re, impl TableColumnsState>,
+    ) -> Table<'re, WithColumnGroup> {
+        unsafe { self.with(group) }
+    }
+    pub fn colgroups<State: TableColumnsState>(
+        mut self,
+        groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
+    ) -> Table<'re, WithColumnGroup> {
+        for group in groups {
+            self.children.push(group.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
         unsafe { self.with(header) }
     }
@@ -154,6 +169,21 @@ impl<'re> Table<'re, Empty> {
     }
 }
 impl<'re> Table<'re, WithCaption> {
+    pub fn colgroup(
+        self,
+        group: TableColumnGroup<'re, impl TableColumnsState>,
+    ) -> Table<'re, WithColumnGroup> {
+        unsafe { self.with(group) }
+    }
+    pub fn colgroups<State: TableColumnsState>(
+        mut self,
+        groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
+    ) -> Table<'re, WithColumnGroup> {
+        for group in groups {
+            self.children.push(group.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
         unsafe { self.with(header) }
     }
@@ -186,6 +216,21 @@ impl<'re> Table<'re, WithCaption> {
     }
 }
 impl<'re> Table<'re, WithColumnGroup> {
+    pub fn colgroup(
+        self,
+        group: TableColumnGroup<'re, impl TableColumnsState>,
+    ) -> Table<'re, WithColumnGroup> {
+        unsafe { self.with(group) }
+    }
+    pub fn colgroups<State: TableColumnsState>(
+        mut self,
+        groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
+    ) -> Table<'re, WithColumnGroup> {
+        for group in groups {
+            self.children.push(group.into_any_element(self.arena));
+        }
+        unsafe { self.change_state() }
+    }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
         unsafe { self.with(header) }
     }

@@ -186,3 +186,6 @@ pub use table_header::*;
 
 mod table_footer;
 pub use table_footer::*;
+
+mod column_metadata;
+pub use column_metadata::*;

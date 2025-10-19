@@ -762,6 +762,33 @@ pub fn caption(arena: &Bump) -> Caption<'_> {
         pre_render_hook: PreRenderHookStorage::new_in(arena),
     }
 }
+/// Represents a group of one or more columns in the `table` that is its parent, if it has a parent and that is a `table` element.
+///
+/// If the `colgroup` element contains no `col` elements, then the element may have a `span` content attribute specified, whose value must be a valid non-negative integer greater than zero and less than or equal to 1000.
+pub fn colgroup(arena: &Bump) -> TableColumnGroup<'_, Empty> {
+    TableColumnGroup {
+        classes: Classes::new_in(arena),
+        id: None,
+        children: Vec::new_in(arena),
+        span: Span::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        state: PhantomData,
+    }
+}
+/// Represents one or more columns in the column group represented by that `colgroup`.
+///
+/// The element may have a `span` content attribute specified, whose value must be a valid non-negative integer greater than zero and less than or equal to 1000.
+pub fn col(arena: &Bump) -> TableColumns<'_, Empty> {
+    TableColumns {
+        classes: Classes::new_in(arena),
+        id: None,
+        span: Span::new_in(arena),
+        arena,
+        pre_render_hook: PreRenderHookStorage::new_in(arena),
+        state: PhantomData,
+    }
+}
 /// Represents a block of rows that consist of a body of data for the parent `table` element.
 pub fn tbody(arena: &Bump) -> TableBody<'_> {
     TableBody {

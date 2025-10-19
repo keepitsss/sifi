@@ -53,16 +53,20 @@ fn sudoku(arena: &Bump) -> elements::Table<'_, impl CorrectTableState> {
             td(arena).child((temp - b'0').to_string())
         }
     };
+    let row = |row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix)));
 
-    // FIXME: add `colgroup` and `col` elements
-    table(arena).id("sudoku").bodies([
-        tbody(arena)
-            .rows((0..3).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
-        tbody(arena)
-            .rows((3..6).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
-        tbody(arena)
-            .rows((6..9).map(|row_ix| tr(arena).cells((0..9).map(|col_ix| cell(row_ix, col_ix))))),
-    ])
+    table(arena)
+        .id("sudoku")
+        .colgroups([
+            colgroup(arena).span(3),
+            colgroup(arena).span(3),
+            colgroup(arena).span(3),
+        ])
+        .bodies([
+            tbody(arena).rows((0..3).map(row)),
+            tbody(arena).rows((3..6).map(row)),
+            tbody(arena).rows((6..9).map(row)),
+        ])
 }
 
 fn example_page(arena: &Bump) -> elements::Body<'_> {
