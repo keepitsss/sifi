@@ -96,9 +96,12 @@ impl<'re> TableColumnGroup<'re, Empty> {
         mut self,
         children: impl IntoIterator<Item = TableColumns<'re, State>>,
     ) -> TableColumnGroup<'re, WithCol> {
+        let mut count = 0;
         for child in children {
+            count += 1;
             self.children.push(child.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn span(mut self, value: usize) -> TableColumnGroup<'re, WithSpan> {
@@ -115,9 +118,12 @@ impl<'re> TableColumnGroup<'re, WithCol> {
         mut self,
         children: impl IntoIterator<Item = TableRow<'re>>,
     ) -> TableColumnGroup<'re, WithCol> {
+        let mut count = 0;
         for child in children {
+            count += 1;
             self.children.push(child.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
 }

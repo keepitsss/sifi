@@ -17,9 +17,12 @@ impl<'re> TableBody<'re> {
         self
     }
     pub fn rows(mut self, elements: impl IntoIterator<Item = TableRow<'re>>) -> Self {
+        let mut count = 0;
         for element in elements {
+            count += 1;
             self.children.push(element.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         self
     }
 }

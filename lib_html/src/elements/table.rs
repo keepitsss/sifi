@@ -132,9 +132,12 @@ impl<'re> Table<'re, Empty> {
         mut self,
         groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
     ) -> Table<'re, WithColumnGroup> {
+        let mut count = 0;
         for group in groups {
+            count += 1;
             self.children.push(group.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
@@ -150,18 +153,24 @@ impl<'re> Table<'re, Empty> {
         mut self,
         table_bodies: impl IntoIterator<Item = TableBody<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for body in table_bodies {
+            count += 1;
             self.children.push(body.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn rows(
         mut self,
         table_rows: impl IntoIterator<Item = TableRow<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for row in table_rows {
+            count += 1;
             self.children.push(row.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
@@ -179,9 +188,12 @@ impl<'re> Table<'re, WithCaption> {
         mut self,
         groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
     ) -> Table<'re, WithColumnGroup> {
+        let mut count = 0;
         for group in groups {
+            count += 1;
             self.children.push(group.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
@@ -197,18 +209,24 @@ impl<'re> Table<'re, WithCaption> {
         mut self,
         table_bodies: impl IntoIterator<Item = TableBody<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for body in table_bodies {
+            count += 1;
             self.children.push(body.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn rows(
         mut self,
         table_rows: impl IntoIterator<Item = TableRow<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for row in table_rows {
+            count += 1;
             self.children.push(row.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
@@ -226,9 +244,12 @@ impl<'re> Table<'re, WithColumnGroup> {
         mut self,
         groups: impl IntoIterator<Item = TableColumnGroup<'re, State>>,
     ) -> Table<'re, WithColumnGroup> {
+        let mut count = 0;
         for group in groups {
+            count += 1;
             self.children.push(group.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn header(self, header: TableHeader<'re>) -> Table<'re, WithHeader> {
@@ -244,18 +265,24 @@ impl<'re> Table<'re, WithColumnGroup> {
         mut self,
         table_bodies: impl IntoIterator<Item = TableBody<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for body in table_bodies {
+            count += 1;
             self.children.push(body.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn rows(
         mut self,
         table_rows: impl IntoIterator<Item = TableRow<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for row in table_rows {
+            count += 1;
             self.children.push(row.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
@@ -273,18 +300,24 @@ impl<'re> Table<'re, WithHeader> {
         mut self,
         table_bodies: impl IntoIterator<Item = TableBody<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for body in table_bodies {
+            count += 1;
             self.children.push(body.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn rows(
         mut self,
         table_rows: impl IntoIterator<Item = TableRow<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for row in table_rows {
+            count += 1;
             self.children.push(row.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
@@ -299,9 +332,12 @@ impl<'re> Table<'re, WithBodies> {
         mut self,
         table_bodies: impl IntoIterator<Item = TableBody<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for body in table_bodies {
+            count += 1;
             self.children.push(body.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
@@ -316,9 +352,12 @@ impl<'re> Table<'re, WithRows> {
         mut self,
         table_rows: impl IntoIterator<Item = TableRow<'re>>,
     ) -> Table<'re, WithRows> {
+        let mut count = 0;
         for row in table_rows {
+            count += 1;
             self.children.push(row.into_any_element(self.arena));
         }
+        assert!(count > 0, "You should provide at least one element");
         unsafe { self.change_state() }
     }
     pub fn footer(self, footer: TableFooter<'re>) -> Table<'re, WithFooter> {
