@@ -3,3 +3,6 @@ secrets
 
 perf.data*
 flamegraph.svg
+
+.zig-cache
+zig-out
