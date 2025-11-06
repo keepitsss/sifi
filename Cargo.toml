@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["src/lib_html", "src/lib_cli", "src/lib_markdown", "src/json_viewer", "src/json_formatter"]
+members = ["src/lib_html", "src/lib_cli", "src/lib_markdown", "src/json_viewer", "src/json_formatter", "src/executables_installer"]
 exclude = ["personal_website"]
 
 [workspace.dependencies]
