@@ -5,6 +5,7 @@ exclude = ["personal_website"]
 
 [workspace.dependencies]
 anyhow = "1.0.98"
+lib_cli = { path = "src/lib_cli" }
 
 # [profile.release]
 # debug = true

@@ -7,6 +7,8 @@ pub trait ParsingRouter {
     fn current_command<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>;
+    fn no_current_command(self);
+    /// Don't add help(make it hidden).
     fn wrapper<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>;
@@ -17,7 +19,10 @@ impl ParsingRouter for Option<ParsingContext> {
         C: ParsingCallback<Inputs>,
     {
         subcommand(self, docs, |cx| {
-            cx.parse(callback, true).unwrap();
+            let res = cx.parse(callback, true);
+            if let Err(err) = res {
+                eprintln!("ERROR: {err}");
+            }
         })
     }
     fn current_command<C, Inputs>(self, callback: C)
@@ -25,15 +30,27 @@ impl ParsingRouter for Option<ParsingContext> {
         C: ParsingCallback<Inputs>,
     {
         current_command(self, |cx| {
-            cx.parse(callback, true).unwrap();
+            let res = cx.parse(callback, true);
+            if let Err(err) = res {
+                eprintln!("ERROR: {err}");
+            }
         })
+    }
+    fn no_current_command(self) {
+        current_command(self, |cx| {
+            eprintln!("ERROR: This command doesn't exist.");
+            eprintln!("{}", cx.documentation.build());
+        });
     }
     fn wrapper<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>,
     {
         current_command(self, |cx| {
-            cx.parse(callback, false).unwrap();
+            let res = cx.parse(callback, false);
+            if let Err(err) = res {
+                eprintln!("ERROR: {err}");
+            }
         })
     }
 }
@@ -44,14 +61,15 @@ impl ParsingRouter for ParsingContext {
     {
         Some(self).subcommand(docs, callback)
     }
-
     fn current_command<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>,
     {
         Some(self).current_command(callback);
     }
-
+    fn no_current_command(self) {
+        Some(self).no_current_command();
+    }
     fn wrapper<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>,

@@ -15,11 +15,12 @@ impl ParsingContext {
     }
 }
 
+// FIXME: don't allow only tail
 macro_rules! implement_parsing_callback {
     ([$(($opt_ty:tt, $opt_name:tt)),+], $last_ty:tt) => {
-        impl<C, $($opt_ty,)+ $last_ty> ParsingCallback<($($opt_ty),+ , $last_ty)> for C
+        impl<C, $($opt_ty,)+ $last_ty> ParsingCallback<($($opt_ty,)+ $last_ty)> for C
         where
-            C: FnOnce($($opt_ty),+ , $last_ty),
+            C: FnOnce($($opt_ty,)+ $last_ty),
             $(
             $opt_ty: Opt,
             )+
@@ -62,7 +63,7 @@ macro_rules! implement_parsing_callback {
                 $(
                 let $opt_name = $opt_ty::finalize($opt_name)?;
                 )+
-                callback($($opt_name),+ , tail);
+                callback($($opt_name,)+ tail);
                 Ok(())
             }
         }

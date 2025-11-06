@@ -41,6 +41,15 @@ pub struct Names {
     pub short: Option<&'static str>,
     pub aliases: &'static [&'static str],
 }
+impl Names {
+    pub const fn only_main(name: &'static str) -> Self {
+        Names {
+            main: name,
+            short: None,
+            aliases: &[],
+        }
+    }
+}
 #[derive(Debug)]
 pub struct DocumentationStore {
     pub item_docs: Documentation,

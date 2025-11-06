@@ -43,6 +43,8 @@ dependencies = [
 name = "executables_installer"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "lib_cli",
  "serde",
  "serde_json",
 ]
