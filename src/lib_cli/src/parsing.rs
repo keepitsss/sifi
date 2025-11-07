@@ -15,7 +15,6 @@ impl ParsingContext {
     }
 }
 
-// FIXME: don't allow only tail
 macro_rules! implement_parsing_callback {
     ([$(($opt_ty:tt, $opt_name:tt)),+], $last_ty:tt) => {
         impl<C, $($opt_ty,)+ $last_ty> ParsingCallback<($($opt_ty,)+ $last_ty)> for C
@@ -37,6 +36,16 @@ macro_rules! implement_parsing_callback {
 
                 let ($(mut $opt_name,)+) = ($(Option::<$opt_ty>::None,)+);
                 loop {
+                    if add_help {
+                        let mut help_flag = None;
+                        FlagHelp::try_parse_self(&mut help_flag, &mut cx)
+                            .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
+                        if help_flag.is_some_and(|FlagHelp(help_needed)| help_needed)
+                        {
+                            println!("{}", cx.documentation.build());
+                            return Ok(());
+                        }
+                    }
                     let mut modified = false;
                     $(
                         {
@@ -45,16 +54,6 @@ macro_rules! implement_parsing_callback {
                         }
                     )+
                     if !modified {
-                        if add_help {
-                            let mut help_flag = None;
-                            FlagHelp::try_parse_self(&mut help_flag, &mut cx)
-                                .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
-                            if help_flag.is_some_and(|FlagHelp(help_needed)| help_needed)
-                            {
-                                println!("{}", cx.documentation.build());
-                                return Ok(());
-                            }
-                        }
                         break;
                     }
                 }
