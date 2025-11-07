@@ -7,6 +7,13 @@ use std::{
 
 mod cli;
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct MetadataEntry {
+    name: String,
+    download_link: String,
+    comment: Option<String>,
+}
+
 fn main() {
     let dir = format!("{home}/.in_path", home = std::env::var("HOME").unwrap());
     let dir_path = PathBuf::from(dir.clone());
@@ -75,52 +82,79 @@ fn main() {
                     "ERROR: Executable with name '{name}' already exists."
                 );
 
-                #[derive(serde::Serialize, serde::Deserialize)]
-                struct Entry {
-                    name: String,
-                    download_link: String,
-                    comment: Option<String>,
-                }
-                let metadata_path = dir_path.join("metadata.json");
-                let mut metadata_file = OpenOptions::new()
-                    .create(true)
-                    .read(true)
-                    .write(true)
-                    .truncate(false)
-                    .open(metadata_path)
-                    .unwrap();
-                let metadata = std::io::read_to_string(&metadata_file).unwrap();
-                let mut metadata = if metadata.is_empty() {
-                    Vec::new()
-                } else {
-                    let mut metadata: Vec<Entry> = serde_json::from_str(&metadata).unwrap();
-                    let mut i = 0;
-                    while i < metadata.len() {
-                        let entry = &metadata[i];
-                        if !dir_path.join(&entry.name).exists() {
-                            metadata.swap_remove(i);
-                            continue;
-                        }
-                        i += 1;
-                    }
-                    metadata
-                };
-                assert!(metadata.iter().all(|e| e.name != name));
-                metadata.push(Entry {
-                    name: name.to_owned(),
-                    download_link: download_link.to_owned(),
-                    comment: comment.map(|x| x.to_owned()),
+                access_metadata(dir_path.clone(), |metadata| {
+                    assert!(metadata.iter().all(|e| e.name != name));
+                    metadata.push(MetadataEntry {
+                        name: name.to_owned(),
+                        download_link: download_link.to_owned(),
+                        comment: comment.map(|x| x.to_owned()),
+                    });
                 });
-
-                // Overwrite content, not append
-                metadata_file.seek(SeekFrom::Start(0)).unwrap();
-                metadata_file.set_len(0).unwrap();
-
-                serde_json::to_writer_pretty(metadata_file, &metadata).unwrap();
 
                 std::fs::copy(executable, executable_new_location).unwrap();
             },
         )
+        .subcommand(
+            lib_cli::Documentation {
+                names: lib_cli::Names {
+                    main: "uninstall",
+                    short: None,
+                    aliases: &["delete", "remove"],
+                },
+                description: "remove installed executable",
+            },
+            |cli::ExecutableName(executable_name), lib_cli::EmptyTail| {
+                let executable = dir_path.clone().join(&executable_name);
+                assert!(
+                    executable.exists(),
+                    "ERROR: Executable with name '{executable_name}' does not exist."
+                );
+                access_metadata(dir_path.clone(), |metadata| {
+                    assert!(
+                        metadata.iter().any(|e| e.name == executable_name),
+                        "Executable isn't added to metadata"
+                    );
+                    metadata.retain(|e| e.name != executable_name);
+                });
+
+                std::fs::remove_file(executable).unwrap();
+            },
+        )
         .no_current_command();
     });
+}
+
+fn access_metadata(root_dir: PathBuf, callback: impl FnOnce(&mut Vec<MetadataEntry>)) {
+    let metadata_path = root_dir.join("metadata.json");
+    let mut metadata_file = OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .truncate(false)
+        .open(metadata_path)
+        .unwrap();
+    let metadata = std::io::read_to_string(&metadata_file).unwrap();
+    let mut metadata = if metadata.is_empty() {
+        Vec::new()
+    } else {
+        let mut metadata: Vec<MetadataEntry> = serde_json::from_str(&metadata).unwrap();
+        let mut i = 0;
+        while i < metadata.len() {
+            let entry = &metadata[i];
+            if !root_dir.join(&entry.name).exists() {
+                metadata.remove(i);
+                continue;
+            }
+            i += 1;
+        }
+        metadata
+    };
+
+    callback(&mut metadata);
+
+    // Overwrite content, not append
+    metadata_file.seek(SeekFrom::Start(0)).unwrap();
+    metadata_file.set_len(0).unwrap();
+
+    serde_json::to_writer_pretty(metadata_file, &metadata).unwrap();
 }
