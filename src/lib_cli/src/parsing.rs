@@ -1,5 +1,7 @@
 use std::convert::Infallible;
 
+use anyhow::bail;
+
 use super::*;
 
 pub trait ParsingCallback<Inputs = Infallible> {
@@ -12,6 +14,28 @@ impl ParsingContext {
         C: ParsingCallback<Inputs>,
     {
         C::process(self, callback, add_help)
+    }
+}
+
+impl<C: FnOnce(ParsingContext)> ParsingCallback<ParsingContext> for C {
+    fn process(mut cx: ParsingContext, callback: Self, add_help: bool) -> Result<()> {
+        if add_help {
+            FlagHelp::add_documentation(&mut cx.documentation);
+            let docs = cx.documentation.build();
+            let mut help_flag = None;
+
+            FlagHelp::try_parse_self(&mut help_flag, &mut cx)
+                .map_err(|err| anyhow::anyhow!("{err}\n\n{docs}"))?;
+            if help_flag.is_some_and(|FlagHelp(help_needed)| help_needed) {
+                println!("{}", docs);
+                return Ok(());
+            }
+        }
+        if cx.cursor != cx.args.len() {
+            bail!("Unmatched args.");
+        }
+        callback(cx);
+        Ok(())
     }
 }
 

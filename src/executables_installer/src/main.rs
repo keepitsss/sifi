@@ -122,7 +122,9 @@ fn main() {
                 std::fs::remove_file(executable).unwrap();
             },
         )
-        .no_current_command();
+        .current_command(|cx: lib_cli::ParsingContext| {
+            println!("{}", cx.documentation.build());
+        });
     });
 }
 

@@ -7,7 +7,6 @@ pub trait ParsingRouter {
     fn current_command<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>;
-    fn no_current_command(self);
     /// Don't add help(make it hidden).
     fn wrapper<C, Inputs>(self, callback: C)
     where
@@ -36,12 +35,6 @@ impl ParsingRouter for Option<ParsingContext> {
             }
         })
     }
-    fn no_current_command(self) {
-        current_command(self, |cx| {
-            eprintln!("ERROR: This command doesn't exist.");
-            eprintln!("{}", cx.documentation.build());
-        });
-    }
     fn wrapper<C, Inputs>(self, callback: C)
     where
         C: ParsingCallback<Inputs>,
@@ -66,9 +59,6 @@ impl ParsingRouter for ParsingContext {
         C: ParsingCallback<Inputs>,
     {
         Some(self).current_command(callback);
-    }
-    fn no_current_command(self) {
-        Some(self).no_current_command();
     }
     fn wrapper<C, Inputs>(self, callback: C)
     where
