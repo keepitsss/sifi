@@ -20,16 +20,12 @@ macro_rules! impl_sequence {
                 $(
                 let $opt_name = {
                     let mut value = None;
-                    let Ok(is_parsed) = $opt_ty::try_parse_self(&mut value, cx) else {
+                    // TODO: ignore error or propagate it?
+                    $opt_ty::try_parse_self(&mut value, cx)?;
+                    let Ok(value) = $opt_ty::finalize(value) else {
                         cx.cursor = cursor_checkpoint;
                         return Ok(false);
                     };
-                    let Some(value) = value else {
-                        assert!(!is_parsed);
-                        cx.cursor = cursor_checkpoint;
-                        return Ok(false);
-                    };
-                    assert!(is_parsed);
                     value
                 };
                 )+
