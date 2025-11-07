@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     fs::OpenOptions,
     io::{ErrorKind, Seek, SeekFrom},
+    ops::Not,
     path::PathBuf,
 };
 
@@ -62,17 +63,18 @@ fn main() {
             )),
              // TODO: collect all(next) args into `comment`
              lib_cli::EmptyTail| {
-                dbg!(&executable, &name, &download_link, &comment);
                 assert!(
                     String::from_utf8(
-                        std::process::Command::new("ldd")
+                        std::process::Command::new("readelf")
+                            .arg("--program-headers")
                             .arg(executable.display().to_string())
                             .output()
                             .unwrap()
-                            .stderr,
+                            .stdout,
                     )
                     .unwrap()
-                    .contains("not a dynamic executable"),
+                    .contains("INTERP")
+                    .not(),
                     "ERROR: Executable must be static."
                 );
 

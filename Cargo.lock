@@ -41,7 +41,7 @@ dependencies = [
 
 [[package]]
 name = "executables_installer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "lib_cli",
