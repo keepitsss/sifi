@@ -1,4 +1,9 @@
-use std::{collections::HashSet, fs::OpenOptions, io::ErrorKind, path::PathBuf};
+use std::{
+    collections::HashSet,
+    fs::OpenOptions,
+    io::{ErrorKind, Seek, SeekFrom},
+    path::PathBuf,
+};
 
 use anyhow::{anyhow, bail};
 
@@ -33,12 +38,17 @@ impl lib_cli::Opt for Executable {
         this.ok_or(anyhow!("You should provide executable path"))
     }
 
-    const SECTION: &str = "argument";
-    const DOCUMENTATION: lib_cli::Documentation = lib_cli::Documentation {
-        names: lib_cli::Names::only_main("executable"),
-        description: "path to executable",
-    };
+    fn add_documentation(store: &mut lib_cli::DocumentationStore) {
+        store.add(
+            "argument",
+            lib_cli::Documentation {
+                names: lib_cli::Names::only_main("executable"),
+                description: "path to executable",
+            },
+        );
+    }
 }
+
 struct ExecutableName(String);
 impl lib_cli::Opt for ExecutableName {
     fn try_parse_self(
@@ -70,11 +80,15 @@ impl lib_cli::Opt for ExecutableName {
         this.ok_or(anyhow!("You should provide executable name"))
     }
 
-    const SECTION: &str = "argument";
-    const DOCUMENTATION: lib_cli::Documentation = lib_cli::Documentation {
-        names: lib_cli::Names::only_main("name"),
-        description: "name of installed executable",
-    };
+    fn add_documentation(store: &mut lib_cli::DocumentationStore) {
+        store.add(
+            "argument",
+            lib_cli::Documentation {
+                names: lib_cli::Names::only_main("name"),
+                description: "name of installed executable",
+            },
+        );
+    }
 }
 struct DownloadLink(String);
 impl lib_cli::Opt for DownloadLink {
@@ -100,11 +114,15 @@ impl lib_cli::Opt for DownloadLink {
         this.ok_or(anyhow!("You should provide download link"))
     }
 
-    const SECTION: &str = "argument";
-    const DOCUMENTATION: lib_cli::Documentation = lib_cli::Documentation {
-        names: lib_cli::Names::only_main("download_link"),
-        description: "where installed executable could be updated or downloaded",
-    };
+    fn add_documentation(store: &mut lib_cli::DocumentationStore) {
+        store.add(
+            "argument",
+            lib_cli::Documentation {
+                names: lib_cli::Names::only_main("download_link"),
+                description: "where installed executable could be updated or downloaded",
+            },
+        );
+    }
 }
 struct Comment(Option<String>);
 impl lib_cli::Opt for Comment {
@@ -131,11 +149,15 @@ impl lib_cli::Opt for Comment {
         Ok(this.unwrap_or(Comment(None)))
     }
 
-    const SECTION: &str = "argument";
-    const DOCUMENTATION: lib_cli::Documentation = lib_cli::Documentation {
-        names: lib_cli::Names::only_main("?comment"),
-        description: "any comment, stored in metadata",
-    };
+    fn add_documentation(store: &mut lib_cli::DocumentationStore) {
+        store.add(
+            "argument",
+            lib_cli::Documentation {
+                names: lib_cli::Names::only_main("?comment"),
+                description: "any comment, stored in metadata",
+            },
+        );
+    }
 }
 
 fn main() {
@@ -213,10 +235,10 @@ fn main() {
                     comment: Option<String>,
                 }
                 let metadata_path = dir_path.join("metadata.json");
-                let metadata_file = OpenOptions::new()
+                let mut metadata_file = OpenOptions::new()
+                    .create(true)
                     .read(true)
                     .write(true)
-                    .create(true)
                     .truncate(false)
                     .open(metadata_path)
                     .unwrap();
@@ -242,6 +264,11 @@ fn main() {
                     download_link: download_link.to_owned(),
                     comment: comment.map(|x| x.to_owned()),
                 });
+
+                // Overwrite content, not append
+                metadata_file.seek(SeekFrom::Start(0)).unwrap();
+                metadata_file.set_len(0).unwrap();
+
                 serde_json::to_writer_pretty(metadata_file, &metadata).unwrap();
 
                 std::fs::copy(executable, executable_new_location).unwrap();

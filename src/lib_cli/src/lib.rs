@@ -23,8 +23,7 @@ pub trait Opt: Sized {
 
     fn finalize(this: Option<Self>) -> Result<Self>;
 
-    const SECTION: &str;
-    const DOCUMENTATION: Documentation;
+    fn add_documentation(store: &mut DocumentationStore);
 }
 pub trait FinalOpt: Sized {
     fn try_parse_self(cx: ParsingContext) -> Result<Self>;

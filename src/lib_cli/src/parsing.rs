@@ -28,11 +28,10 @@ macro_rules! implement_parsing_callback {
         {
             fn process(mut cx: ParsingContext, callback: Self, add_help: bool) -> Result<()> {
                 $(
-                cx.documentation.add($opt_ty::SECTION, $opt_ty::DOCUMENTATION);
+                $opt_ty::add_documentation(&mut cx.documentation);
                 )+
                 if add_help {
-                    cx.documentation
-                        .add(FlagHelp::SECTION, FlagHelp::DOCUMENTATION);
+                    FlagHelp::add_documentation(&mut cx.documentation);
                 }
                 let docs = cx.documentation.build();
 

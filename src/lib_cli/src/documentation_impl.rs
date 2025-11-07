@@ -21,6 +21,7 @@ impl DocumentationStore {
             store: BTreeMap::default(),
         }
     }
+    /// TIP: Add to 'hidden' section if you don't want user to see this
     pub fn add(&mut self, section: &'static str, docs: Documentation) {
         self.store.entry(section).or_default().push(docs);
     }

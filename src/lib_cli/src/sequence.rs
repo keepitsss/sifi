@@ -41,16 +41,11 @@ macro_rules! impl_sequence {
                 }
             }
 
-            const SECTION: &str = "sequence";
-
-            const DOCUMENTATION: Documentation = Documentation {
-                names: Names {
-                    main: "some sequence",
-                    short: None,
-                    aliases: &[],
-                },
-                description: "Waiting for const_alloc, needed for children docs concatingation"
-            };
+            fn add_documentation(store: &mut DocumentationStore) {
+                $(
+                $opt_ty::add_documentation(store);
+                )+
+            }
         }
     };
 }

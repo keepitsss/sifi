@@ -62,16 +62,19 @@ where
         Ok(this.unwrap_or(Self::from(false)))
     }
 
-    const SECTION: &str = "flag";
-
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: Self::NAME,
-            short: Self::SHORT_NAME,
-            aliases: Self::ALIASES,
-        },
-        description: Self::DESCRIPTION,
-    };
+    fn add_documentation(store: &mut DocumentationStore) {
+        store.add(
+            "flag",
+            Documentation {
+                names: Names {
+                    main: Self::NAME,
+                    short: Self::SHORT_NAME,
+                    aliases: Self::ALIASES,
+                },
+                description: Self::DESCRIPTION,
+            },
+        );
+    }
 }
 
 pub struct FlagHelp(pub bool);
@@ -108,14 +111,17 @@ impl Opt for AppPath {
         this.ok_or(anyhow!("First argument should be App Path"))
     }
 
-    const SECTION: &str = "hidden";
-
-    const DOCUMENTATION: Documentation = Documentation {
-        names: Names {
-            main: "APP_PATH",
-            short: None,
-            aliases: &[],
-        },
-        description: "path to this program",
-    };
+    fn add_documentation(store: &mut DocumentationStore) {
+        store.add(
+            "hidden",
+            Documentation {
+                names: Names {
+                    main: "APP_PATH",
+                    short: None,
+                    aliases: &[],
+                },
+                description: "path to this program",
+            },
+        );
+    }
 }
