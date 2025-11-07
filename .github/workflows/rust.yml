@@ -29,6 +29,8 @@ jobs:
         run: cargo build --package json_viewer --release --target x86_64-unknown-linux-musl
       - name: Build json formatter
         run: cargo build --package json_formatter --release --target x86_64-unknown-linux-musl
+      - name: Build executables installer
+        run: cargo build --package executables_installer --release --target x86_64-unknown-linux-musl
 
       - name: Upload json viewer
         uses: actions/upload-artifact@v4.6.1
@@ -40,3 +42,8 @@ jobs:
         with:
           name: json_formatter-linux-x86_64
           path: target/x86_64-unknown-linux-musl/release/json_formatter
+      - name: Upload executables installer
+        uses: actions/upload-artifact@v4.6.1
+        with:
+          name: executables_installer-linux-x86_64
+          path: target/x86_64-unknown-linux-musl/release/executables_installer
