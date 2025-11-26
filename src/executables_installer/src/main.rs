@@ -99,6 +99,45 @@ fn main() {
         .subcommand(
             lib_cli::Documentation {
                 names: lib_cli::Names {
+                    main: "update",
+                    short: None,
+                    aliases: &[],
+                },
+                description: "updates executable",
+            },
+            |lib_cli::Sequence((cli::ExecutableName(name), cli::Executable(executable))),
+             lib_cli::EmptyTail| {
+                assert!(
+                    String::from_utf8(
+                        std::process::Command::new("readelf")
+                            .arg("--program-headers")
+                            .arg(executable.display().to_string())
+                            .output()
+                            .unwrap()
+                            .stdout,
+                    )
+                    .unwrap()
+                    .contains("INTERP")
+                    .not(),
+                    "ERROR: Executable must be static."
+                );
+
+                let executable_new_location = dir_path.join(&name);
+                assert!(
+                    executable_new_location.exists(),
+                    "ERROR: Executable with name '{name}' doesn't exist."
+                );
+
+                access_metadata(dir_path.clone(), |metadata| {
+                    assert!(metadata.iter().any(|e| e.name == name));
+                });
+
+                std::fs::copy(executable, executable_new_location).unwrap();
+            },
+        )
+        .subcommand(
+            lib_cli::Documentation {
+                names: lib_cli::Names {
                     main: "uninstall",
                     short: None,
                     aliases: &["delete", "remove"],
