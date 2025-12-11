@@ -40,16 +40,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "executables_installer"
-version = "0.1.2"
-dependencies = [
- "anyhow",
- "lib_cli",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -185,6 +175,16 @@ dependencies = [
  "ryu",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "sineptic-executables-installer"
+version = "0.1.2"
+dependencies = [
+ "anyhow",
+ "lib_cli",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

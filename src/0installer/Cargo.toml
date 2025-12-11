@@ -1,5 +1,5 @@
 [package]
-name = "executables_installer"
+name = "sineptic-executables-installer"
 version = "0.1.2"
 edition = "2024"
 

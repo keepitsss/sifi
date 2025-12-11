@@ -38,7 +38,7 @@ fn main() {
 
     let cx = lib_cli::ParsingContext::from_args(lib_cli::Documentation {
         names: lib_cli::Names {
-            main: "executables_installer",
+            main: "0installer",
             short: None,
             aliases: &[],
         },
