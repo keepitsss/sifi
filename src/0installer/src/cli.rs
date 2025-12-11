@@ -115,7 +115,7 @@ impl lib_cli::Opt for DownloadLink {
             "argument",
             lib_cli::Documentation {
                 names: lib_cli::Names::only_main("download_link"),
-                description: "where installed executable could be updated or downloaded",
+                description: "from where installed executable could be fetched",
             },
         );
     }
@@ -151,7 +151,7 @@ impl lib_cli::Opt for Comment {
             "argument",
             lib_cli::Documentation {
                 names: lib_cli::Names::only_main("?comment"),
-                description: "any comment, stored in metadata",
+                description: "any comment, that will be stored in metadata",
             },
         );
     }
