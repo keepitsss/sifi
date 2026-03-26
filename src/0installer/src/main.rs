@@ -42,7 +42,7 @@ fn main() {
             short: None,
             aliases: &[],
         },
-        description: "install static executable in path",
+        description: "install static executables",
     });
     use lib_cli::ParsingRouter;
     cx.wrapper(|lib_cli::utils::AppPath(_path), lib_cli::TailArgs(args)| {

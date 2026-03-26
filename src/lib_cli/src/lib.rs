@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ffi::OsString};
+use std::{collections::BTreeMap, ffi::OsString, path::PathBuf};
 
 use anyhow::Result;
 
@@ -15,6 +15,17 @@ impl ParsingContext {
             cursor: 0,
             documentation: DocumentationStore::new(program_docs),
         }
+    }
+
+    pub fn read_str(&mut self) -> Option<&str> {
+        let str = self.args.get(self.cursor)?.to_str()?;
+        self.cursor += 1;
+        Some(str)
+    }
+    pub fn read_path(&mut self) -> Option<PathBuf> {
+        let path = self.args.get(self.cursor)?;
+        self.cursor += 1;
+        Some(PathBuf::from(path))
     }
 }
 pub trait Opt: Sized {

@@ -11,17 +11,13 @@ impl lib_cli::Opt for Executable {
         if this.is_some() {
             return Ok(false);
         }
-        if let Some(next) = cx.args.get(cx.cursor)
-            && let Some(next) = next.to_str()
-        {
-            let executable = PathBuf::from(next);
+        if let Some(executable) = cx.read_path() {
             if !executable.exists() {
                 bail!("Executable should exist.");
             }
             if !executable.is_file() {
                 bail!("Executable should be file.");
             }
-            cx.cursor += 1;
             *this = Some(Executable(executable.canonicalize().unwrap()));
             Ok(true)
         } else {
@@ -53,17 +49,13 @@ impl lib_cli::Opt for ExecutableName {
         if this.is_some() {
             return Ok(false);
         }
-        if let Some(next) = cx.args.get(cx.cursor)
-            && let Some(next) = next.to_str()
-        {
-            let name = next;
+        if let Some(name) = cx.read_str() {
             if !name
                 .chars()
                 .all(|ch| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-')
             {
-                bail!("Name could contain alphanumeric characters as well as '_' and '-'.");
+                bail!("Name could contain only alphanumeric characters as well as '_' and '-'.");
             }
-            cx.cursor += 1;
             *this = Some(ExecutableName(name.to_owned()));
             Ok(true)
         } else {
@@ -95,10 +87,7 @@ impl lib_cli::Opt for DownloadLink {
         if this.is_some() {
             return Ok(false);
         }
-        if let Some(next) = cx.args.get(cx.cursor)
-            && let Some(next) = next.to_str()
-        {
-            cx.cursor += 1;
+        if let Some(next) = cx.read_str() {
             *this = Some(DownloadLink(next.to_owned()));
             Ok(true)
         } else {
@@ -131,10 +120,7 @@ impl lib_cli::Opt for Comment {
             assert!(this.as_ref().unwrap().0.is_some());
             return Ok(false);
         }
-        if let Some(next) = cx.args.get(cx.cursor)
-            && let Some(next) = next.to_str()
-        {
-            cx.cursor += 1;
+        if let Some(next) = cx.read_str() {
             *this = Some(Comment(Some(next.to_owned())));
             Ok(true)
         } else {
