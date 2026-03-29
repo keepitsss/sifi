@@ -9,6 +9,7 @@ pub const CliContext = struct {
     cursor: usize,
     diagnostics: std.ArrayList(Diagnostic),
     documenataion_store: DocumentationStore,
+    output: *std.io.Writer,
 
     const DiagnosticKind = enum {
         err,
@@ -20,7 +21,7 @@ pub const CliContext = struct {
         message: []const u8,
     };
 
-    pub fn init(allocator: std.mem.Allocator, program_docs: Documentation) !CliContext {
+    pub fn init(allocator: std.mem.Allocator, program_docs: Documentation, output: *std.io.Writer) !CliContext {
         return .{
             .args = try std.process.argsAlloc(allocator),
             .cursor = 1,
@@ -29,6 +30,7 @@ pub const CliContext = struct {
                 .top_level = program_docs,
                 .other = std.ArrayList(Documentation).empty,
             },
+            .output = output,
             .allocator = allocator,
         };
     }
@@ -39,9 +41,15 @@ pub const CliContext = struct {
     }
 
     pub fn parse(self: *CliContext, options: []const *Option) !void {
+        var help_flag = BoolFlag.new(.{
+            .names = .{ .main = "--help", .short = "-h" },
+            .description = "print help",
+        });
+
         for (options) |option| {
             try option.add_documentation(option, self);
         }
+        try help_flag.vtable.add_documentation(&help_flag.vtable, self);
 
         var progress_happened = true;
         while (progress_happened) {
@@ -50,6 +58,10 @@ pub const CliContext = struct {
                 if (try option.try_parse_self(option, self)) {
                     progress_happened = true;
                 }
+            }
+            if (try help_flag.vtable.try_parse_self(&help_flag.vtable, self)) {
+                try self.documenataion_store.print(self.output);
+                return error.HelpRequested;
             }
         }
 
@@ -85,6 +97,14 @@ const DocumentationStore = struct {
             self.top_level.description,
         });
         std.sort.block(Documentation, self.other.items, {}, lessThan);
+        var max_short_name_len: usize = 0;
+        var max_main_name_len: usize = 0;
+        for (self.other.items) |doc| {
+            if (doc.names.short) |short| {
+                max_short_name_len = @max(max_short_name_len + 1, short.len);
+            }
+            max_main_name_len = @max(max_main_name_len, doc.names.main.len);
+        }
         var prev_section: ?[]const u8 = null;
         for (self.other.items) |doc| {
             if (doc.section != null and (prev_section == null or !std.mem.eql(u8, doc.section.?, prev_section.?))) {
@@ -94,11 +114,19 @@ const DocumentationStore = struct {
                 prev_section = doc.section;
             }
             try writer.print("  \x1b[1m", .{});
+
             if (doc.names.short) |short| {
                 try writer.print("{s},", .{short});
+                try writer.splatByteAll(' ', max_short_name_len - (short.len + 1));
+            } else {
+                try writer.splatByteAll(' ', max_short_name_len);
             }
+
             try writer.print(" {s}\x1b[0m  ", .{doc.names.main});
+            try writer.splatByteAll(' ', max_main_name_len - doc.names.main.len);
+
             try writer.print("{s}", .{doc.description});
+
             if (doc.names.aliases.len > 0) {
                 try writer.print(" [aliases: ", .{});
                 for (doc.names.aliases, 0..) |alias, i| {
@@ -107,6 +135,7 @@ const DocumentationStore = struct {
                 }
                 try writer.print("]", .{});
             }
+
             try writer.print("\n", .{});
         }
         try writer.flush();
