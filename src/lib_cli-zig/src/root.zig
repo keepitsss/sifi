@@ -84,13 +84,13 @@ pub const CliContext = struct {
         for (self.diagnostics.items) |diagnostic| {
             switch (diagnostic.kind) {
                 .err => {
-                    try self.output.print("\x1b[31mERROR\x1b[0m: {s}\n", .{diagnostic.message});
+                    try self.output.print("\x1b[31mERROR:\x1b[0m {s}\n", .{diagnostic.message});
                 },
                 .help => {
-                    try self.output.print("\x1b[34mHELP\x1b[0m: {s}\n", .{diagnostic.message});
+                    try self.output.print("\x1b[34mHELP:\x1b[0m {s}\n", .{diagnostic.message});
                 },
                 .warn => {
-                    try self.output.print("\x1b[33mWARNING\x1b[0m: {s}\n", .{diagnostic.message});
+                    try self.output.print("\x1b[33mWARNING:\x1b[0m {s}\n", .{diagnostic.message});
                 },
             }
         }
