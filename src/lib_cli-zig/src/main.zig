@@ -15,10 +15,13 @@ pub fn main() !void {
     defer ctx.deinit();
 
     var my_flag = BoolFlag.new(.{
-        .names = .{ .main = "my", .short = "m" },
+        .names = .{ .main = "--my", .short = "-m", .aliases = &.{"--me"} },
         .description = "my test flag",
     });
     try ctx.parse(&.{&my_flag.vtable});
 
     std.debug.print("my_flag.present: {}\n", .{my_flag.present});
+    var buf: [1024]u8 = undefined;
+    var stdout = std.fs.File.stdout().writer(&buf);
+    try ctx.documenataion_store.print(&stdout.interface);
 }

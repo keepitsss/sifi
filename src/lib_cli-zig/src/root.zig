@@ -20,11 +20,6 @@ pub const CliContext = struct {
         message: []const u8,
     };
 
-    const DocumentationStore = struct {
-        top_level: Documentation,
-        other: std.ArrayList(Documentation),
-    };
-
     pub fn init(allocator: std.mem.Allocator, program_docs: Documentation) !CliContext {
         return .{
             .args = try std.process.argsAlloc(allocator),
@@ -75,6 +70,49 @@ pub const Documentation = struct {
     description: []const u8,
 };
 
+const DocumentationStore = struct {
+    top_level: Documentation,
+    other: std.ArrayList(Documentation),
+
+    fn lessThan(_: void, left: Documentation, right: Documentation) bool {
+        if (left.section == null) return true;
+        if (right.section == null) return false;
+        return std.mem.order(u8, left.section.?, right.section.?) == .lt;
+    }
+    pub fn print(self: *const DocumentationStore, writer: *std.io.Writer) !void {
+        try writer.print("\x1b[1m{s}\x1b[0m - {s}\n", .{
+            self.top_level.names.main,
+            self.top_level.description,
+        });
+        std.sort.block(Documentation, self.other.items, {}, lessThan);
+        var prev_section: ?[]const u8 = null;
+        for (self.other.items) |doc| {
+            if (doc.section != null and (prev_section == null or !std.mem.eql(u8, doc.section.?, prev_section.?))) {
+                if (doc.section) |section| {
+                    try writer.print("\x1b[1;4m{s}s:\x1b[0m\n", .{section});
+                }
+                prev_section = doc.section;
+            }
+            try writer.print("  \x1b[1m", .{});
+            if (doc.names.short) |short| {
+                try writer.print("{s},", .{short});
+            }
+            try writer.print(" {s}\x1b[0m  ", .{doc.names.main});
+            try writer.print("{s}", .{doc.description});
+            if (doc.names.aliases.len > 0) {
+                try writer.print(" [aliases: ", .{});
+                for (doc.names.aliases, 0..) |alias, i| {
+                    if (i > 0) try writer.print(", ", .{});
+                    try writer.print("{s}", .{alias});
+                }
+                try writer.print("]", .{});
+            }
+            try writer.print("\n", .{});
+        }
+        try writer.flush();
+    }
+};
+
 pub const Option = struct {
     add_documentation: *const fn (*Option, *CliContext) std.mem.Allocator.Error!void,
     try_parse_self: *const fn (*Option, *CliContext) anyerror!bool,
@@ -109,29 +147,20 @@ pub const BoolFlag = struct {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
         // TODO: emit warning if flag is present multiple times
         if (ctx.cursor >= ctx.args.len) return false;
-        if (ctx.args[ctx.cursor].len > 2 and
-            std.mem.eql(u8, ctx.args[ctx.cursor][0..2], "--") and
-            std.mem.eql(u8, ctx.args[ctx.cursor][2..], self.documentation.names.main))
-        {
+        if (std.mem.eql(u8, ctx.args[ctx.cursor], self.documentation.names.main)) {
             self.present = true;
             ctx.cursor += 1;
             return true;
         }
         if (self.documentation.names.short) |short| {
-            if (ctx.args[ctx.cursor].len > 1 and
-                std.mem.eql(u8, ctx.args[ctx.cursor][0..1], "-") and
-                std.mem.eql(u8, ctx.args[ctx.cursor][1..], short))
-            {
+            if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
                 self.present = true;
                 ctx.cursor += 1;
                 return true;
             }
         }
         for (self.documentation.names.aliases) |alias| {
-            if (ctx.args[ctx.cursor].len > 2 and
-                std.mem.eql(u8, ctx.args[ctx.cursor][0..2], "--") and
-                std.mem.eql(u8, ctx.args[ctx.cursor][2..], alias))
-            {
+            if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
                 self.present = true;
                 ctx.cursor += 1;
                 return true;
