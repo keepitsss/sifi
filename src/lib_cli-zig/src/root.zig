@@ -52,16 +52,26 @@ pub const CliContext = struct {
         try help_flag.vtable.add_documentation(&help_flag.vtable, self);
 
         var progress_happened = true;
-        while (progress_happened) {
+        outer: while (progress_happened) {
             progress_happened = false;
             for (options) |option| {
-                if (try option.try_parse_self(option, self)) {
-                    progress_happened = true;
+                switch (try option.try_parse_self(option, self)) {
+                    .continue_no_progress => {},
+                    .continue_with_progress => {
+                        progress_happened = true;
+                    },
+                    .stop => {
+                        break :outer;
+                    },
                 }
             }
-            if (try help_flag.vtable.try_parse_self(&help_flag.vtable, self)) {
-                try self.documenataion_store.print(self.output);
-                return error.HelpRequested;
+            switch (try help_flag.vtable.try_parse_self(&help_flag.vtable, self)) {
+                .continue_no_progress => {},
+                .continue_with_progress => {
+                    try self.documenataion_store.print(self.output);
+                    return error.HelpRequested;
+                },
+                .stop => unreachable,
             }
         }
 
@@ -144,8 +154,14 @@ const DocumentationStore = struct {
 
 pub const Option = struct {
     add_documentation: *const fn (*Option, *CliContext) std.mem.Allocator.Error!void,
-    try_parse_self: *const fn (*Option, *CliContext) anyerror!bool,
+    try_parse_self: *const fn (*Option, *CliContext) anyerror!ParsingResult,
     finalize: *const fn (*Option, *CliContext) anyerror!void,
+
+    const ParsingResult = enum {
+        continue_no_progress,
+        continue_with_progress,
+        stop,
+    };
 };
 
 pub const BoolFlag = struct {
@@ -172,30 +188,30 @@ pub const BoolFlag = struct {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
         try ctx.documenataion_store.other.append(ctx.allocator, self.documentation);
     }
-    fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!bool {
+    fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!Option.ParsingResult {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
         // TODO: emit warning if flag is present multiple times
-        if (ctx.cursor >= ctx.args.len) return false;
+        if (ctx.cursor >= ctx.args.len) return .continue_no_progress;
         if (std.mem.eql(u8, ctx.args[ctx.cursor], self.documentation.names.main)) {
             self.present = true;
             ctx.cursor += 1;
-            return true;
+            return .continue_with_progress;
         }
         if (self.documentation.names.short) |short| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
                 self.present = true;
                 ctx.cursor += 1;
-                return true;
+                return .continue_with_progress;
             }
         }
         for (self.documentation.names.aliases) |alias| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
                 self.present = true;
                 ctx.cursor += 1;
-                return true;
+                return .continue_with_progress;
             }
         }
-        return false;
+        return .continue_no_progress;
     }
     fn finalize(ptr: *Option, ctx: *CliContext) anyerror!void {
         _ = ptr;
