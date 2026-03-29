@@ -15,12 +15,10 @@ pub fn main() !void {
     defer ctx.deinit();
 
     var my_flag = BoolFlag.new(.{
-        .section = "flag",
         .names = .{ .main = "my", .short = "m" },
         .description = "my test flag",
     });
-    var flags = [_]*CliOption{&my_flag.vtable};
-    try ctx.parse(&flags);
+    try ctx.parse(&.{&my_flag.vtable});
 
     std.debug.print("my_flag.present: {}\n", .{my_flag.present});
 }

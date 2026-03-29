@@ -43,7 +43,7 @@ pub const CliContext = struct {
         self.diagnostics.deinit(self.allocator);
     }
 
-    pub fn parse(self: *CliContext, options: []*Option) !void {
+    pub fn parse(self: *CliContext, options: []const *Option) !void {
         for (options) |option| {
             try option.add_documentation(option, self);
         }
@@ -66,7 +66,7 @@ pub const CliContext = struct {
 
 pub const Documentation = struct {
     // TODO: Maybe make it enum or smth like that
-    section: ?[]const u8,
+    section: ?[]const u8 = null,
     names: struct {
         main: []const u8,
         short: ?[]const u8 = null,
@@ -91,7 +91,14 @@ pub const BoolFlag = struct {
     },
 
     pub fn new(documentation: Documentation) BoolFlag {
-        return .{ .documentation = documentation };
+        var doc = documentation;
+        if (doc.section) |section| {
+            assert(std.mem.eql(u8, section, "flag"));
+        }
+        if (doc.section == null) {
+            doc.section = "flag";
+        }
+        return .{ .documentation = doc };
     }
 
     fn add_documentation(ptr: *Option, ctx: *CliContext) std.mem.Allocator.Error!void {
