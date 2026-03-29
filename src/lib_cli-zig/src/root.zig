@@ -51,6 +51,7 @@ pub const CliContext = struct {
         }
         try help_flag.vtable.add_documentation(&help_flag.vtable, self);
 
+        defer self.emit_diagnostics() catch {};
         var progress_happened = true;
         outer: while (progress_happened) {
             progress_happened = false;
@@ -78,6 +79,23 @@ pub const CliContext = struct {
         for (options) |option| {
             try option.finalize(option, self);
         }
+    }
+    fn emit_diagnostics(self: *CliContext) !void {
+        for (self.diagnostics.items) |diagnostic| {
+            switch (diagnostic.kind) {
+                .err => {
+                    try self.output.print("\x1b[31mERROR\x1b[0m: {s}\n", .{diagnostic.message});
+                },
+                .help => {
+                    try self.output.print("\x1b[34mHELP\x1b[0m: {s}\n", .{diagnostic.message});
+                },
+                .warn => {
+                    try self.output.print("\x1b[33mWARNING\x1b[0m: {s}\n", .{diagnostic.message});
+                },
+            }
+        }
+        try self.output.flush();
+        self.diagnostics.clearRetainingCapacity();
     }
 };
 
@@ -165,7 +183,7 @@ pub const Option = struct {
 };
 
 pub const BoolFlag = struct {
-    present: bool = false,
+    occurances: usize = 0,
     documentation: Documentation,
     vtable: Option = .{
         .add_documentation = add_documentation,
@@ -184,34 +202,44 @@ pub const BoolFlag = struct {
         return .{ .documentation = doc };
     }
 
+    pub fn present(self: *const BoolFlag) bool {
+        return self.occurances > 0;
+    }
+
     fn add_documentation(ptr: *Option, ctx: *CliContext) std.mem.Allocator.Error!void {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
         try ctx.documenataion_store.other.append(ctx.allocator, self.documentation);
     }
     fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!Option.ParsingResult {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
-        // TODO: emit warning if flag is present multiple times
         if (ctx.cursor >= ctx.args.len) return .continue_no_progress;
         if (std.mem.eql(u8, ctx.args[ctx.cursor], self.documentation.names.main)) {
-            self.present = true;
-            ctx.cursor += 1;
+            try self.handle_occurance(ctx);
             return .continue_with_progress;
         }
         if (self.documentation.names.short) |short| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
-                self.present = true;
-                ctx.cursor += 1;
+                try self.handle_occurance(ctx);
                 return .continue_with_progress;
             }
         }
         for (self.documentation.names.aliases) |alias| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
-                self.present = true;
-                ctx.cursor += 1;
+                try self.handle_occurance(ctx);
                 return .continue_with_progress;
             }
         }
         return .continue_no_progress;
+    }
+    fn handle_occurance(self: *BoolFlag, ctx: *CliContext) !void {
+        self.occurances += 1;
+        if (self.occurances == 2) {
+            try ctx.diagnostics.append(ctx.allocator, .{
+                .kind = .warn,
+                .message = try std.fmt.allocPrint(ctx.allocator, "Flag '{s}' is present multiple times.", .{self.documentation.names.main}),
+            });
+        }
+        ctx.cursor += 1;
     }
     fn finalize(ptr: *Option, ctx: *CliContext) anyerror!void {
         _ = ptr;

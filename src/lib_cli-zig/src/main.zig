@@ -24,5 +24,5 @@ pub fn main() !void {
         else => return err,
     };
 
-    std.debug.print("my_flag.present: {}\n", .{my_flag.present});
+    std.debug.print("my_flag.present: {}\n", .{my_flag.present()});
 }
