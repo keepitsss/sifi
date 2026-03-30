@@ -19,10 +19,23 @@ pub fn main() !void {
         .names = .{ .main = "--my", .short = "-m", .aliases = &.{"--me"} },
         .description = "my test flag",
     });
-    ctx.parse(&.{&my_flag.vtable}) catch |err| switch (err) {
+    var subcommand = lib_cli_zig.make_subcommand(.{
+        .install = .{
+            .name = "install",
+            .short_name = "i",
+            .aliases = &.{"add"},
+            .description = "add executable to your path",
+        },
+        .update = .{
+            .name = "update",
+            .description = "updates executable",
+        },
+    }){};
+    ctx.parse(&.{ &my_flag.vtable, &subcommand.vtable }) catch |err| switch (err) {
         error.HelpRequested => return,
         else => return err,
     };
 
     std.debug.print("my_flag.present: {}\n", .{my_flag.present()});
+    std.debug.print("subcommand.command: {?}\n", .{subcommand.command});
 }

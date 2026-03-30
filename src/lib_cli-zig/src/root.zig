@@ -55,6 +55,14 @@ pub const CliContext = struct {
         var progress_happened = true;
         outer: while (progress_happened) {
             progress_happened = false;
+            switch (try help_flag.vtable.try_parse_self(&help_flag.vtable, self)) {
+                .continue_no_progress => {},
+                .continue_with_progress => {
+                    try self.documenataion_store.print(self.output);
+                    return error.HelpRequested;
+                },
+                .stop => unreachable,
+            }
             for (options) |option| {
                 switch (try option.try_parse_self(option, self)) {
                     .continue_no_progress => {},
@@ -65,14 +73,6 @@ pub const CliContext = struct {
                         break :outer;
                     },
                 }
-            }
-            switch (try help_flag.vtable.try_parse_self(&help_flag.vtable, self)) {
-                .continue_no_progress => {},
-                .continue_with_progress => {
-                    try self.documenataion_store.print(self.output);
-                    return error.HelpRequested;
-                },
-                .stop => unreachable,
             }
         }
 
@@ -125,7 +125,7 @@ const DocumentationStore = struct {
             self.top_level.description,
         });
         std.sort.block(Documentation, self.other.items, {}, lessThan);
-        var max_short_name_len: usize = 0;
+        var max_short_name_len: usize = 1;
         var max_main_name_len: usize = 0;
         for (self.other.items) |doc| {
             if (doc.names.short) |short| {
@@ -137,7 +137,7 @@ const DocumentationStore = struct {
         for (self.other.items) |doc| {
             if (doc.section != null and (prev_section == null or !std.mem.eql(u8, doc.section.?, prev_section.?))) {
                 if (doc.section) |section| {
-                    try writer.print("\x1b[1;4m{s}s:\x1b[0m\n", .{section});
+                    try writer.print("\n\x1b[1;4m{s}s:\x1b[0m\n", .{section});
                 }
                 prev_section = doc.section;
             }
@@ -150,7 +150,7 @@ const DocumentationStore = struct {
                 try writer.splatByteAll(' ', max_short_name_len);
             }
 
-            try writer.print(" {s}\x1b[0m  ", .{doc.names.main});
+            try writer.print("{s}\x1b[0m  ", .{doc.names.main});
             try writer.splatByteAll(' ', max_main_name_len - doc.names.main.len);
 
             try writer.print("{s}", .{doc.description});
@@ -246,3 +246,95 @@ pub const BoolFlag = struct {
         _ = ctx;
     }
 };
+
+// TODO: report additional(unused) fields
+// TODO: add asserts
+pub fn make_subcommand(comptime options: anytype) type {
+    const struct_info = switch (@typeInfo(@TypeOf(options))) {
+        .@"struct" => |s| s,
+        else => @compileError("expected a struct"),
+    };
+    const fields = struct_info.fields;
+    const names: [fields.len]std.builtin.Type.EnumField = comptime blk: {
+        var tmp: [fields.len]std.builtin.Type.EnumField = undefined;
+        for (fields, 0..) |field, i| {
+            tmp[i] = .{
+                .name = field.name,
+                .value = i,
+            };
+        }
+        break :blk tmp;
+    };
+    const docs: [fields.len]Documentation = comptime blk: {
+        var tmp: [fields.len]Documentation = undefined;
+        for (fields, 0..) |doc, i| {
+            const d = @field(options, doc.name);
+            const d_type = @TypeOf(d);
+            const value: Documentation = .{
+                .section = "subcommand",
+                .names = .{
+                    .main = d.name,
+                    .short = if (@hasField(d_type, "short_name")) d.short_name else null,
+                    .aliases = if (@hasField(d_type, "aliases")) d.aliases else &.{},
+                },
+                .description = d.description,
+            };
+            tmp[i] = value;
+        }
+        break :blk tmp;
+    };
+    return struct {
+        command: ?PossibleCommands = null,
+        vtable: Option = .{
+            .add_documentation = add_documentation,
+            .try_parse_self = try_parse,
+            .finalize = finalize,
+        },
+
+        pub const PossibleCommands = @Type(.{ .@"enum" = .{
+            .tag_type = u8,
+            .fields = &names,
+            .decls = &.{},
+            .is_exhaustive = true,
+        } });
+
+        const documentation = docs;
+
+        fn add_documentation(ptr: *Option, ctx: *CliContext) std.mem.Allocator.Error!void {
+            _ = ptr;
+            for (documentation) |doc| {
+                try ctx.documenataion_store.other.append(ctx.allocator, doc);
+            }
+        }
+        fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!Option.ParsingResult {
+            const self: *@This() = @fieldParentPtr("vtable", ptr);
+            if (ctx.cursor >= ctx.args.len) return .continue_no_progress;
+            for (documentation, 0..) |doc, i| {
+                if (std.mem.eql(u8, ctx.args[ctx.cursor], doc.names.main)) {
+                    self.command = @enumFromInt(i);
+                    return .stop;
+                }
+                if (doc.names.short) |short| {
+                    if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
+                        self.command = @enumFromInt(i);
+                        return .stop;
+                    }
+                }
+                for (doc.names.aliases) |alias| {
+                    if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
+                        self.command = @enumFromInt(i);
+                        return .stop;
+                    }
+                }
+            }
+            return .continue_no_progress;
+        }
+        fn finalize(ptr: *Option, ctx: *CliContext) anyerror!void {
+            const self: *@This() = @fieldParentPtr("vtable", ptr);
+            if (self.command) |cmd| {
+                ctx.documenataion_store.top_level = documentation[@intFromEnum(cmd)];
+                ctx.documenataion_store.other.clearRetainingCapacity();
+            }
+        }
+    };
+}
