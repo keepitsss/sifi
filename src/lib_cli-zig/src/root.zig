@@ -329,17 +329,20 @@ pub fn make_subcommand(comptime options: anytype) type {
             for (documentation, 0..) |doc, i| {
                 if (std.mem.eql(u8, ctx.args[ctx.cursor], doc.names.main)) {
                     self.command = @enumFromInt(i);
+                    ctx.cursor += 1;
                     return .stop;
                 }
                 if (doc.names.short) |short| {
                     if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
                         self.command = @enumFromInt(i);
+                        ctx.cursor += 1;
                         return .stop;
                     }
                 }
                 for (doc.names.aliases) |alias| {
                     if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
                         self.command = @enumFromInt(i);
+                        ctx.cursor += 1;
                         return .stop;
                     }
                 }
