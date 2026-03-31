@@ -34,6 +34,7 @@ pub fn main(init: std.process.Init) !void {
         error.HelpRequested => return,
         else => return err,
     };
+    try ctx.finish();
 
     std.debug.print("my_flag.present: {}\n", .{my_flag.present()});
     std.debug.print("subcommand.command: {?}\n", .{subcommand.command});

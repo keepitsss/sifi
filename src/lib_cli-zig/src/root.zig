@@ -2,8 +2,8 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 pub const CliContext = struct {
+    gpa: std.mem.Allocator,
     args: []const [:0]const u8,
-    allocator: std.mem.Allocator,
     cursor: usize,
     diagnostics: std.ArrayList(Diagnostic),
     documenataion_store: DocumentationStore,
@@ -17,6 +17,7 @@ pub const CliContext = struct {
     const Diagnostic = struct {
         kind: DiagnosticKind,
         message: []const u8,
+        owned: bool,
     };
 
     pub fn init(allocator: std.mem.Allocator, args: std.process.Args, program_docs: Documentation, output: *std.Io.Writer) !CliContext {
@@ -29,14 +30,14 @@ pub const CliContext = struct {
                 .other = std.ArrayList(Documentation).empty,
             },
             .output = output,
-            .allocator = allocator,
+            .gpa = allocator,
         };
     }
     pub fn deinit(self: *CliContext) void {
-        self.allocator.free(self.args);
+        self.gpa.free(self.args);
         assert(self.diagnostics.items.len == 0);
-        self.diagnostics.deinit(self.allocator);
-        self.documenataion_store.deinit(self.allocator);
+        self.diagnostics.deinit(self.gpa);
+        self.documenataion_store.deinit(self.gpa);
     }
 
     pub fn parse(self: *CliContext, options: []const *Option) !void {
@@ -94,7 +95,26 @@ pub const CliContext = struct {
             }
         }
         try self.output.flush();
+        for (self.diagnostics.items) |diagnostic| {
+            if (diagnostic.owned) {
+                self.gpa.free(diagnostic.message);
+            }
+        }
         self.diagnostics.clearRetainingCapacity();
+    }
+
+    pub fn finish(self: *CliContext) !void {
+        if (self.cursor < self.args.len) {
+            const unmatched_args = try std.mem.join(self.gpa, " ", self.args[self.cursor..]);
+            defer self.gpa.free(unmatched_args);
+            try self.diagnostics.append(self.gpa, .{
+                .kind = .err,
+                .message = try std.fmt.allocPrint(self.gpa, "Unmatched arguments: '{s}'.", .{unmatched_args}),
+                .owned = true,
+            });
+            try self.emit_diagnostics();
+            return error.UnmatchedArgs;
+        }
     }
 };
 
@@ -210,7 +230,7 @@ pub const BoolFlag = struct {
 
     fn add_documentation(ptr: *Option, ctx: *CliContext) std.mem.Allocator.Error!void {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
-        try ctx.documenataion_store.other.append(ctx.allocator, self.documentation);
+        try ctx.documenataion_store.other.append(ctx.gpa, self.documentation);
     }
     fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!Option.ParsingResult {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
@@ -236,9 +256,10 @@ pub const BoolFlag = struct {
     fn handle_occurance(self: *BoolFlag, ctx: *CliContext) !void {
         self.occurances += 1;
         if (self.occurances == 2) {
-            try ctx.diagnostics.append(ctx.allocator, .{
+            try ctx.diagnostics.append(ctx.gpa, .{
                 .kind = .warn,
-                .message = try std.fmt.allocPrint(ctx.allocator, "Flag '{s}' is present multiple times.", .{self.documentation.names.main}),
+                .message = try std.fmt.allocPrint(ctx.gpa, "Flag '{s}' is present multiple times.", .{self.documentation.names.main}),
+                .owned = true,
             });
         }
         ctx.cursor += 1;
@@ -249,7 +270,6 @@ pub const BoolFlag = struct {
     }
 };
 
-// TODO: report additional(unused) fields
 // TODO: add asserts
 pub fn make_subcommand(comptime options: anytype) type {
     const struct_info = switch (@typeInfo(@TypeOf(options))) {
@@ -300,7 +320,7 @@ pub fn make_subcommand(comptime options: anytype) type {
         fn add_documentation(ptr: *Option, ctx: *CliContext) std.mem.Allocator.Error!void {
             _ = ptr;
             for (documentation) |doc| {
-                try ctx.documenataion_store.other.append(ctx.allocator, doc);
+                try ctx.documenataion_store.other.append(ctx.gpa, doc);
             }
         }
         fn try_parse(ptr: *Option, ctx: *CliContext) anyerror!Option.ParsingResult {
