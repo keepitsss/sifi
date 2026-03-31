@@ -5,11 +5,10 @@ const CliContext = lib_cli_zig.CliContext;
 const CliOption = lib_cli_zig.Option;
 const BoolFlag = lib_cli_zig.BoolFlag;
 
-pub fn main() !void {
-    const gpa = std.heap.page_allocator;
+pub fn main(init: std.process.Init) !void {
     var buf: [1024]u8 = undefined;
-    var stdout = std.fs.File.stdout().writer(&buf);
-    var ctx = try lib_cli_zig.CliContext.init(gpa, .{
+    var stdout = std.Io.File.stdout().writer(init.io, &buf);
+    var ctx = try lib_cli_zig.CliContext.init(init.gpa, init.minimal.args, .{
         .names = .{ .main = "0installer" },
         .description = "install static executable in path",
     }, &stdout.interface);

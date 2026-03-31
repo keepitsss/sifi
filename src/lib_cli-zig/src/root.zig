@@ -1,15 +1,13 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-// TODO: dealloc messages
-
 pub const CliContext = struct {
-    args: [][:0]u8,
+    args: []const [:0]const u8,
     allocator: std.mem.Allocator,
     cursor: usize,
     diagnostics: std.ArrayList(Diagnostic),
     documenataion_store: DocumentationStore,
-    output: *std.io.Writer,
+    output: *std.Io.Writer,
 
     const DiagnosticKind = enum {
         err,
@@ -21,9 +19,9 @@ pub const CliContext = struct {
         message: []const u8,
     };
 
-    pub fn init(allocator: std.mem.Allocator, program_docs: Documentation, output: *std.io.Writer) !CliContext {
+    pub fn init(allocator: std.mem.Allocator, args: std.process.Args, program_docs: Documentation, output: *std.Io.Writer) !CliContext {
         return .{
-            .args = try std.process.argsAlloc(allocator),
+            .args = try args.toSlice(allocator),
             .cursor = 1,
             .diagnostics = std.ArrayList(Diagnostic).empty,
             .documenataion_store = .{
@@ -35,9 +33,10 @@ pub const CliContext = struct {
         };
     }
     pub fn deinit(self: *CliContext) void {
-        std.process.argsFree(self.allocator, self.args);
+        self.allocator.free(self.args);
         assert(self.diagnostics.items.len == 0);
         self.diagnostics.deinit(self.allocator);
+        self.documenataion_store.deinit(self.allocator);
     }
 
     pub fn parse(self: *CliContext, options: []const *Option) !void {
@@ -114,12 +113,15 @@ const DocumentationStore = struct {
     top_level: Documentation,
     other: std.ArrayList(Documentation),
 
+    fn deinit(self: *DocumentationStore, allocator: std.mem.Allocator) void {
+        self.other.deinit(allocator);
+    }
     fn lessThan(_: void, left: Documentation, right: Documentation) bool {
         if (left.section == null) return true;
         if (right.section == null) return false;
         return std.mem.order(u8, left.section.?, right.section.?) == .lt;
     }
-    pub fn print(self: *const DocumentationStore, writer: *std.io.Writer) !void {
+    pub fn print(self: *const DocumentationStore, writer: *std.Io.Writer) !void {
         try writer.print("\x1b[1m{s}\x1b[0m - {s}\n", .{
             self.top_level.names.main,
             self.top_level.description,
@@ -255,16 +257,16 @@ pub fn make_subcommand(comptime options: anytype) type {
         else => @compileError("expected a struct"),
     };
     const fields = struct_info.fields;
-    const names: [fields.len]std.builtin.Type.EnumField = comptime blk: {
-        var tmp: [fields.len]std.builtin.Type.EnumField = undefined;
-        for (fields, 0..) |field, i| {
-            tmp[i] = .{
-                .name = field.name,
-                .value = i,
-            };
-        }
-        break :blk tmp;
-    };
+    var names_mut: [fields.len][]const u8 = undefined;
+    for (fields, 0..) |field, i| {
+        names_mut[i] = field.name;
+    }
+    var values_mut: [fields.len]u8 = undefined;
+    for (fields, 0..) |_, i| {
+        values_mut[i] = i;
+    }
+    const names = names_mut;
+    const values = values_mut;
     const docs: [fields.len]Documentation = comptime blk: {
         var tmp: [fields.len]Documentation = undefined;
         for (fields, 0..) |doc, i| {
@@ -291,12 +293,7 @@ pub fn make_subcommand(comptime options: anytype) type {
             .finalize = finalize,
         },
 
-        pub const PossibleCommands = @Type(.{ .@"enum" = .{
-            .tag_type = u8,
-            .fields = &names,
-            .decls = &.{},
-            .is_exhaustive = true,
-        } });
+        pub const PossibleCommands = @Enum(u8, .exhaustive, &names, &values);
 
         const documentation = docs;
 
