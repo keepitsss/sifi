@@ -206,12 +206,15 @@ pub const Option = struct {
 
 pub const BoolFlag = struct {
     occurances: usize = 0,
+    first_flag_form: FlagForm = undefined,
     documentation: Documentation,
     vtable: Option = .{
         .add_documentation = add_documentation,
         .try_parse_self = try_parse,
         .finalize = finalize,
     },
+
+    const FlagForm = union(enum) { main, short, alias: usize };
 
     pub fn new(documentation: Documentation) BoolFlag {
         var doc = documentation;
@@ -236,33 +239,46 @@ pub const BoolFlag = struct {
         const self: *BoolFlag = @fieldParentPtr("vtable", ptr);
         if (ctx.cursor >= ctx.args.len) return .continue_no_progress;
         if (std.mem.eql(u8, ctx.args[ctx.cursor], self.documentation.names.main)) {
-            try self.handle_occurance(ctx);
+            try self.handle_occurance(.main, ctx);
             return .continue_with_progress;
         }
         if (self.documentation.names.short) |short| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], short)) {
-                try self.handle_occurance(ctx);
+                try self.handle_occurance(.short, ctx);
                 return .continue_with_progress;
             }
         }
-        for (self.documentation.names.aliases) |alias| {
+        for (self.documentation.names.aliases, 0..) |alias, i| {
             if (std.mem.eql(u8, ctx.args[ctx.cursor], alias)) {
-                try self.handle_occurance(ctx);
+                try self.handle_occurance(.{ .alias = i }, ctx);
                 return .continue_with_progress;
             }
         }
         return .continue_no_progress;
     }
-    fn handle_occurance(self: *BoolFlag, ctx: *CliContext) !void {
+    fn handle_occurance(self: *BoolFlag, form: FlagForm, ctx: *CliContext) !void {
         self.occurances += 1;
-        if (self.occurances == 2) {
+        if (self.occurances == 1) {
+            self.first_flag_form = form;
+        }
+        if (self.occurances > 1) {
             try ctx.diagnostics.append(ctx.gpa, .{
                 .kind = .warn,
-                .message = try std.fmt.allocPrint(ctx.gpa, "Flag '{s}' is present multiple times.", .{self.documentation.names.main}),
+                .message = try std.fmt.allocPrint(ctx.gpa, "Flag '{s}' is dublicate of already present flag '{s}'.", .{
+                    self.flag_name(form),
+                    self.flag_name(self.first_flag_form),
+                }),
                 .owned = true,
             });
         }
         ctx.cursor += 1;
+    }
+    fn flag_name(self: *const BoolFlag, form: FlagForm) []const u8 {
+        switch (form) {
+            .main => return self.documentation.names.main,
+            .short => return self.documentation.names.short.?,
+            .alias => |i| return self.documentation.names.aliases[i],
+        }
     }
     fn finalize(ptr: *Option, ctx: *CliContext) anyerror!void {
         _ = ptr;
